@@ -13,7 +13,11 @@
     header h1 { font-size: 28px; margin-bottom: 10px; }
     header p { font-size: 14px; opacity: 0.9; }
     .section { background: white; padding: 25px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 0; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; padding-bottom: 15px; }
+    .section-title::after { content: '▲'; font-size: 10px; color: #aaa; transition: transform 0.3s ease; flex-shrink: 0; margin-left: 10px; }
+    .section-title.collapsed::after { transform: rotate(180deg); }
+    .section-content { overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; max-height: 4000px; opacity: 1; }
+    .section-content.collapsed { max-height: 0 !important; opacity: 0; pointer-events: none; }
     .input-group { margin-bottom: 15px; }
     label { display: block; font-size: 13px; font-weight: 500; color: #666; margin-bottom: 5px; }
     input[type="range"] { width: 100%; }
@@ -716,6 +720,25 @@
 
     // Initial calculation
     calculate();
-  </script>
+
+    // Accordion
+    function initAccordions() {
+      document.querySelectorAll('.section').forEach(section => {
+        const title = section.querySelector(':scope > .section-title');
+        if (!title) return;
+        const content = document.createElement('div');
+        content.className = 'section-content';
+        Array.from(section.children).forEach(child => {
+          if (child !== title) content.appendChild(child);
+        });
+        section.appendChild(content);
+        title.addEventListener('click', () => {
+          const collapsed = content.classList.toggle('collapsed');
+          title.classList.toggle('collapsed', collapsed);
+        });
+      });
+    }
+    initAccordions();
+</script>
 </body>
 </html>
