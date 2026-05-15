@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Azure Cost Calculator - With Optional Add-Ons</title>
+  <title>Azure Cost Calculator - Conservative + Reservations</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -22,13 +22,6 @@
     .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
     .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
     .checkbox-group label { margin: 0; cursor: pointer; user-select: none; }
-    .addon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
-    .addon-card { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; cursor: pointer; transition: all 0.2s; }
-    .addon-card:hover { border-color: #0078d4; background: #f0f7ff; }
-    .addon-card input[type="checkbox"] { width: 16px; height: 16px; margin-right: 8px; }
-    .addon-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; }
-    .addon-desc { font-size: 11px; color: #666; margin-bottom: 6px; line-height: 1.4; }
-    .addon-cost { font-size: 12px; font-weight: 600; color: #0078d4; }
     .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .metric-card { background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #0078d4; }
     .metric-label { font-size: 12px; color: #666; margin-bottom: 5px; text-transform: uppercase; }
@@ -43,23 +36,31 @@
     .text-right { text-align: right; }
     .text-muted { color: #999; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; margin-left: 8px; }
-    .badge-addon { background: #fff3cd; color: #856404; }
-    .chart-container { position: relative; height: 400px; margin: 20px 0; }
+    .badge-reserved { background: #d4edda; color: #155724; }
+    .badge-high { background: #fff3cd; color: #856404; }
+    .badge-low { background: #e2e3e5; color: #383d41; }
     .saving { color: #28a745; font-weight: 600; }
+    .chart-container { position: relative; height: 400px; margin: 20px 0; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+    .summary-box { background: #e8f4f8; padding: 15px; border-radius: 6px; border-left: 4px solid #0078d4; }
+    .summary-box.saving { background: #d4edda; border-left-color: #28a745; }
+    .summary-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+    .summary-value { font-size: 20px; font-weight: 600; color: #0078d4; }
+    .summary-box.saving .summary-value { color: #28a745; }
     .tip-box { background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; border-radius: 6px; margin: 15px 0; font-size: 13px; color: #0c5460; }
     button { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; margin: 5px 5px 5px 0; }
     button:hover { background: #006abc; }
     .button-secondary { background: #6c757d; }
     .button-secondary:hover { background: #5a6268; }
     .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
-    @media (max-width: 768px) { .input-row { grid-template-columns: 1fr; } .addon-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .input-row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Azure Cost Calculator</h1>
-      <p>Conservative Configuration + 1-Year Reservations + Optional Add-Ons</p>
+      <p>Conservative Configuration + 1-Year Reservations | Zero Operational Risk</p>
     </header>
 
     <!-- INPUTS -->
@@ -86,7 +87,12 @@
             <div style="font-size: 11px; color: #666;">2,000+ controllers</div>
           </button>
         </div>
-        <div style="font-size: 12px; color: #666; text-align: center;">Or adjust controllers slider below for custom counts</div>
+      </div>
+
+      <!-- TIER DETAILS -->
+      <div id="tierDetailsPanel" style="background: #f9f9f9; border-left: 4px solid #0078d4; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
+        <div style="font-weight: 600; color: #0078d4; margin-bottom: 10px;">📋 Tier Configuration Details</div>
+        <div id="tierDetailsContent" style="font-size: 12px; line-height: 1.6; color: #333;"></div>
       </div>
 
       <div class="input-row">
@@ -139,48 +145,6 @@
           <label for="reservationsMode">1-Year Azure Reservations (35% savings)</label>
         </div>
       </div>
-
-      <!-- OPTIONAL ADD-ONS -->
-      <div style="margin-top: 20px;">
-        <div style="font-size: 13px; font-weight: 600; color: #0078d4; margin-bottom: 12px; text-transform: uppercase;">Optional Add-Ons (Premium Features)</div>
-        <div class="addon-grid">
-          <div class="addon-card" onclick="toggleAddon('sql-buffer', event)">
-            <div class="addon-title">
-              <input type="checkbox" id="addon-sql-buffer" onchange="calculate()">
-              <label for="addon-sql-buffer" style="margin:0; cursor:pointer;">SQL Transaction Buffer</label>
-            </div>
-            <div class="addon-desc">+50% DTU on Alarm Mgmt + Comm Service for peak throughput</div>
-            <div class="addon-cost">+$15 - $420/mo</div>
-          </div>
-
-          <div class="addon-card" onclick="toggleAddon('sql-geo', event)">
-            <div class="addon-title">
-              <input type="checkbox" id="addon-sql-geo" onchange="calculate()">
-              <label for="addon-sql-geo" style="margin:0; cursor:pointer;">SQL HA / Geo-Failover</label>
-            </div>
-            <div class="addon-desc">Active Geo-Replication to East US for Alarm + Comm</div>
-            <div class="addon-cost">+$60 - $1,190/mo</div>
-          </div>
-
-          <div class="addon-card" onclick="toggleAddon('sql-backup', event)">
-            <div class="addon-title">
-              <input type="checkbox" id="addon-sql-backup" onchange="calculate()">
-              <label for="addon-sql-backup" style="margin:0; cursor:pointer;">SQL Backup Plan</label>
-            </div>
-            <div class="addon-desc">PITR (35-day) + LTR on all 8 SQL databases</div>
-            <div class="addon-cost">+$15 - $150/mo</div>
-          </div>
-
-          <div class="addon-card" onclick="toggleAddon('cosmos-backup', event)">
-            <div class="addon-title">
-              <input type="checkbox" id="addon-cosmos-backup" onchange="calculate()">
-              <label for="addon-cosmos-backup" style="margin:0; cursor:pointer;">Cosmos DB Multi-Region</label>
-            </div>
-            <div class="addon-desc">Continuous backup + East US replica for Log Mgmt</div>
-            <div class="addon-cost">+$25 - $350/mo</div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- METRICS -->
@@ -195,12 +159,12 @@
         <div class="metric-card">
           <div class="metric-label">Monthly Cost</div>
           <div class="metric-value" id="monthlyCost">$2,150</div>
-          <div class="metric-sub" id="costDetail">with add-ons</div>
+          <div class="metric-sub">recurring</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Annual Cost (Yr 2+)</div>
           <div class="metric-value" id="annualCost">$25,800</div>
-          <div class="metric-sub">recurring</div>
+          <div class="metric-sub">no upfront</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Savings vs Standard</div>
@@ -216,6 +180,104 @@
       <div class="chart-container">
         <canvas id="costChart"></canvas>
       </div>
+    </div>
+
+    <!-- TIER CONFIGURATION DETAILS TABLE -->
+    <div class="section">
+      <div class="section-title">Tier Configuration Comparison</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 28%;">Specification</th>
+            <th style="width: 18%;">Starter (1-50)</th>
+            <th style="width: 18%;">Standard (51-500)</th>
+            <th style="width: 18%;">Professional (501-2,000)</th>
+            <th style="width: 18%;">Enterprise (2,000+)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Use Case</strong></td>
+            <td>Small deployments, POC, pilot programs</td>
+            <td>Mid-sized enterprise, multiple locations</td>
+            <td>Large enterprise, mission-critical systems</td>
+            <td>Massive deployment, highest availability</td>
+          </tr>
+          <tr style="background: #f0f0f0;"><td colspan="5"></td></tr>
+          <tr>
+            <td><strong>🖥️ Compute</strong></td>
+            <td>3× D2s v4<br/>(2 vCPU, 8GB RAM)</td>
+            <td>3× D4s v4<br/>(4 vCPU, 16GB RAM)</td>
+            <td>4× D4s v4<br/>(4 vCPU, 16GB RAM)</td>
+            <td>6× D4s v4<br/>(4 vCPU, 16GB RAM)</td>
+          </tr>
+          <tr>
+            <td><strong>💾 Database</strong></td>
+            <td>Basic/S0 SQL<br/>Serverless Cosmos DB</td>
+            <td>S0-S3 SQL<br/>Serverless Cosmos DB</td>
+            <td>S1-S4 SQL<br/>Autoscale Cosmos<br/>(4000 RU/s)</td>
+            <td>S2-S5 SQL<br/>Provisioned Cosmos<br/>(4000 RU/s)</td>
+          </tr>
+          <tr>
+            <td><strong>🌐 Networking</strong></td>
+            <td>Standard App Gateway WAF</td>
+            <td>Standard App Gateway WAF + load balancing</td>
+            <td>Premium App Gateway WAF + advanced rules</td>
+            <td>Premium App Gateway WAF + DDoS protection</td>
+          </tr>
+          <tr>
+            <td><strong>📊 Monitoring</strong></td>
+            <td>Basic App Insights & Log Analytics</td>
+            <td>Advanced App Insights & Log Analytics</td>
+            <td>Enterprise App Insights + custom alerts</td>
+            <td>Full observability + custom dashboards</td>
+          </tr>
+          <tr style="background: #f0f0f0;"><td colspan="5"></td></tr>
+          <tr>
+            <td><strong>SLA</strong></td>
+            <td>99.5%<br/>(no guarantee)</td>
+            <td>99.9%<br/>(with Uptime SLA)</td>
+            <td>99.99%<br/>(multi-zone redundancy)</td>
+            <td>99.99%+<br/>(multi-zone + failover)</td>
+          </tr>
+          <tr>
+            <td><strong>High Availability</strong></td>
+            <td>Single region only</td>
+            <td>Single region<br/>(optional geo-failover)</td>
+            <td>Multi-zone<br/>(optional geo-failover)</td>
+            <td>Multi-zone + geo-failover recommended</td>
+          </tr>
+          <tr>
+            <td><strong>Geo-Failover</strong></td>
+            <td>Not available</td>
+            <td>Available<br/>(+$60-300/mo)</td>
+            <td>Available<br/>(+$600/mo)</td>
+            <td>Available<br/>(+$1,190/mo)</td>
+          </tr>
+          <tr>
+            <td><strong>Multi-Region Cosmos</strong></td>
+            <td>Not supported</td>
+            <td>Not supported</td>
+            <td>Optional<br/>(+$200/mo)</td>
+            <td>Recommended<br/>(+$350/mo)</td>
+          </tr>
+          <tr style="background: #f0f0f0;"><td colspan="5"></td></tr>
+          <tr>
+            <td><strong>✓ Recommended For</strong></td>
+            <td>Single building, testing, development</td>
+            <td>Small-medium enterprise, campus deployment</td>
+            <td>Large enterprise, critical security infrastructure</td>
+            <td>Enterprise HQ, government, global deployment</td>
+          </tr>
+          <tr>
+            <td><strong>📈 Growth Path</strong></td>
+            <td>Scale to Standard when >50 controllers</td>
+            <td>Scale to Professional when >500 controllers</td>
+            <td>Scale to Enterprise when >2,000 controllers</td>
+            <td>Already at maximum scale</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- SERVICE BREAKDOWN -->
@@ -235,18 +297,26 @@
       </table>
     </div>
 
-    <!-- ADD-ONS DETAIL -->
-    <div class="section" id="addonsDetail" style="display:none;">
-      <div class="section-title">Selected Add-Ons Detail</div>
+    <!-- RESERVATIONS DETAIL -->
+    <div class="section" id="reservationsDetail" style="display:none;">
+      <div class="section-title">1-Year Reservation Details</div>
       <table>
-        <thead>
-          <tr>
-            <th>Add-On</th>
-            <th class="text-right">Monthly Cost</th>
-          </tr>
-        </thead>
-        <tbody id="addonsTable">
-        </tbody>
+        <tr>
+          <td>Upfront Cost (1-year commitment)</td>
+          <td class="text-right"><strong id="upfrontCost">$0</strong></td>
+        </tr>
+        <tr>
+          <td>Monthly Amortized (upfront ÷ 12)</td>
+          <td class="text-right"><strong id="amortizedCost">$0</strong></td>
+        </tr>
+        <tr>
+          <td>Break-even Point</td>
+          <td class="text-right"><strong id="breakevenMonths">0</strong> months</td>
+        </tr>
+        <tr>
+          <td style="font-weight: 600; border-top: 2px solid #ddd; padding-top: 10px;">Monthly Savings (Year 1+)</td>
+          <td class="text-right" style="font-weight: 600; border-top: 2px solid #ddd; color: #28a745; padding-top: 10px;" id="monthlySavings">$1,050</td>
+        </tr>
       </table>
     </div>
 
@@ -265,12 +335,13 @@
     </div>
 
     <div class="footer">
-      <p>Azure Cost Calculator | Conservative Configuration + Phase 1 Optimizations + Optional Add-Ons</p>
+      <p>Azure Cost Calculator | Conservative Configuration + Phase 1 Optimizations</p>
       <p>Estimates based on West US pricing. Actual costs may vary. See Azure Pricing for current rates.</p>
     </div>
   </div>
 
   <script>
+    // Data
     const TIERS = [
       { name: 'Starter', max: 50 },
       { name: 'Standard', max: 500 },
@@ -278,34 +349,21 @@
       { name: 'Enterprise', max: 99999 }
     ];
 
-    const ADDON_COSTS = {
-      'sql-buffer': [15, 105, 210, 420],
-      'sql-geo': [60, 300, 600, 1190],
-      'sql-backup': [15, 40, 80, 150],
-      'cosmos-backup': [25, 55, 200, 350]
-    };
-
-    const ADDON_LABELS = {
-      'sql-buffer': 'SQL Transaction Buffer',
-      'sql-geo': 'SQL HA / Geo-Failover',
-      'sql-backup': 'SQL Backup Plan',
-      'cosmos-backup': 'Cosmos DB Multi-Region'
-    };
-
     const SERVICES = [
       { cat: 'Compute', name: 'AKS cluster', consCosts: [213, 370, 476, 686], eligible: true },
       { cat: 'Compute', name: 'App Service', consCosts: [47, 94, 94, 189], eligible: true },
       { cat: 'Compute', name: 'Azure Functions', consCosts: [5, 10, 20, 30], eligible: false },
       { cat: 'Database', name: 'SQL Light DBs (elastic pool)', consCosts: [25, 90, 180, 360], eligible: true },
       { cat: 'Database', name: 'SQL – Comm Service', consCosts: [15, 75, 150, 300], eligible: true },
-      { cat: 'Database', name: 'SQL – Alarm Mgmt', consCosts: [15, 75, 150, 300], eligible: true },
-      { cat: 'Database', name: 'Cosmos DB – Log Mgmt', consCosts: [0, 0, 450, 450], eligible: true },
+      { cat: 'Database', name: 'SQL – Alarm Mgmt', dynamic: 'alarm', eligible: true },
+      { cat: 'Database', name: 'Cosmos DB – Log Mgmt', dynamic: 'cosmos', eligible: true },
       { cat: 'Networking', name: 'App Gateway WAF_v2', consCosts: [144, 200, 280, 400], eligible: false },
       { cat: 'Networking', name: 'Azure Load Balancer', consCosts: [25, 25, 35, 50], eligible: false },
       { cat: 'Networking', name: 'Virtual Network', consCosts: [5, 5, 10, 15], eligible: false },
       { cat: 'Storage', name: 'Azure Blob Storage', consCosts: [5, 15, 30, 60], eligible: true },
       { cat: 'Storage', name: 'Backup / Snapshots', consCosts: [10, 30, 60, 120], eligible: false },
       { cat: 'Security & Identity', name: 'Azure Key Vault', consCosts: [5, 10, 15, 20], eligible: false },
+      { cat: 'Security & Identity', name: 'Entra ID', consCosts: [0, 0, 0, 0], eligible: false },
       { cat: 'Monitoring', name: 'Application Insights', consCosts: [8, 20, 50, 100], eligible: false },
       { cat: 'Monitoring', name: 'Log Analytics Workspace', consCosts: [8, 25, 65, 125], eligible: false },
       { cat: 'Monitoring', name: 'Monitor Alerts', consCosts: [5, 5, 10, 15], eligible: false },
@@ -319,17 +377,76 @@
     }
 
     function selectTier(tierIdx, tierName) {
-      // Set controller count based on tier
       const tierRanges = {
         1: 25,    // Starter: mid-range of 1-50
         2: 250,   // Standard: mid-range of 51-500
         3: 1000,  // Professional: mid-range of 501-2000
         4: 3000   // Enterprise: high end of 2000+
       };
+
+      const tierDetails = {
+        1: {
+          name: 'Starter',
+          controllers: '1-50',
+          useCase: 'Small deployments, POC, pilot programs',
+          compute: '3× D2s v4 nodes (2 vCPU, 8GB RAM each)',
+          database: 'Basic/S0 SQL, Serverless Cosmos DB',
+          network: 'Standard App Gateway WAF',
+          monitoring: 'Basic Application Insights & Log Analytics',
+          features: 'Single region, 99.5% SLA, no geo-failover',
+          recommended: 'Single building, testing environment, development'
+        },
+        2: {
+          name: 'Standard',
+          controllers: '51-500',
+          useCase: 'Mid-sized enterprise, multiple locations',
+          compute: '3× D4s v4 nodes (4 vCPU, 16GB RAM each)',
+          database: 'S0-S3 SQL tiers, Serverless Cosmos DB',
+          network: 'Standard App Gateway WAF with load balancing',
+          monitoring: 'Advanced Application Insights & Log Analytics',
+          features: 'Single region, 99.9% SLA (with Uptime SLA), optional geo-failover',
+          recommended: 'Small to medium enterprise, campus deployment'
+        },
+        3: {
+          name: 'Professional',
+          controllers: '501-2,000',
+          useCase: 'Large enterprise, mission-critical systems',
+          compute: '4× D4s v4 nodes (4 vCPU, 16GB RAM each)',
+          database: 'S1-S4 SQL tiers, Autoscale Cosmos DB (4000 RU/s)',
+          network: 'Premium App Gateway WAF with advanced rules',
+          monitoring: 'Enterprise Application Insights & Log Analytics with custom alerts',
+          features: '99.99% SLA, multi-zone redundancy, optional geo-failover + multi-region',
+          recommended: 'Large enterprise, critical security infrastructure'
+        },
+        4: {
+          name: 'Enterprise',
+          controllers: '2,000+',
+          useCase: 'Massive deployment, highest availability',
+          compute: '6× D4s v4 nodes (4 vCPU, 16GB RAM each)',
+          database: 'S2-S5 SQL tiers, Provisioned Cosmos DB (4000 RU/s)',
+          network: 'Premium App Gateway WAF with DDoS protection',
+          monitoring: 'Full observability stack with custom dashboards',
+          features: '99.99%+ SLA, multi-zone redundancy, geo-failover + multi-region recommended',
+          recommended: 'Enterprise HQ, government/critical infrastructure, global rollout'
+        }
+      };
+
+      const details = tierDetails[tierIdx];
+      let detailsHTML = `
+        <strong>${details.name} Tier</strong> (${details.controllers} controllers)<br><br>
+        <strong>💼 Use Case:</strong> ${details.useCase}<br>
+        <strong>🖥️ Compute:</strong> ${details.compute}<br>
+        <strong>💾 Database:</strong> ${details.database}<br>
+        <strong>🌐 Networking:</strong> ${details.network}<br>
+        <strong>📊 Monitoring:</strong> ${details.monitoring}<br>
+        <strong>⚙️ Features:</strong> ${details.features}<br>
+        <strong>✓ Recommended For:</strong> ${details.recommended}
+      `;
+      
+      document.getElementById('tierDetailsContent').innerHTML = detailsHTML;
       
       document.getElementById('controllers').value = tierRanges[tierIdx];
       
-      // Update button styles
       document.getElementById('btn-starter').style.background = tierIdx === 1 ? '#0078d4' : '#f0f0f0';
       document.getElementById('btn-starter').style.color = tierIdx === 1 ? 'white' : '#333';
       document.getElementById('btn-starter').style.borderColor = tierIdx === 1 ? '#0078d4' : '#ddd';
@@ -349,6 +466,28 @@
       calculate();
     }
 
+    function calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx) {
+      const hbDay = controllers * (86400 / hbInterval);
+      const crDay = controllers * credEvents * 24;
+      const alDay = controllers * alarmEvents * 24;
+      const totalRuDay = hbDay * 5 + crDay * 5 + alDay * 10;
+      const moRU = totalRuDay * 30 * 1.2;
+      const ruPerSec = Math.ceil(totalRuDay / 86400);
+      
+      let cost = 0;
+      if (tierIdx <= 1) {
+        cost = (moRU / 1e6) * 0.282;
+      } else if (tierIdx === 2) {
+        const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
+        cost = (p / 100) * 6.50;
+      } else {
+        const p = Math.min(4000, ruPerSec * 2);
+        cost = (p / 100) * 6.50;
+      }
+      const gb = Math.max(10, ((hbDay + crDay + alDay) * 30 * 1.8 / 1048576));
+      return Math.round(cost + gb * 0.25);
+    }
+
     function formatCurrency(num) {
       return '$' + Math.round(num).toLocaleString();
     }
@@ -357,14 +496,6 @@
       if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
       if (num >= 1e3) return (num / 1e3).toFixed(0) + 'K';
       return Math.round(num).toString();
-    }
-
-    function toggleAddon(addonId, event) {
-      if (event.target.tagName !== 'INPUT') {
-        const checkbox = document.getElementById('addon-' + addonId);
-        checkbox.checked = !checkbox.checked;
-        calculate();
-      }
     }
 
     function calculate() {
@@ -377,6 +508,7 @@
       const tierIdx = getTierIndex(controllers);
       const tier = TIERS[tierIdx];
 
+      // Update displays
       document.getElementById('ctrl-display').value = controllers.toLocaleString();
       const hbVal = hbInterval;
       if (hbVal >= 3600) {
@@ -390,14 +522,33 @@
       const tierRanges = ['1-50', '51-500', '501-2000', '2000+'];
       document.getElementById('tierSub').textContent = tierRanges[tierIdx] + ' controllers';
 
-      // Calculate service costs
+      // Calculate costs
       const rows = SERVICES.map(s => {
-        let cost = s.consCosts[tierIdx];
+        let cost = 0;
+        if (s.dynamic === 'cosmos') {
+          cost = calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx);
+        } else if (s.dynamic === 'alarm') {
+          const alDay = controllers * alarmEvents * 24;
+          const baseCosts = [15, 75, 150, 300];
+          cost = baseCosts[tierIdx];
+          if (alDay > 500000 && tierIdx < 3) {
+            cost = baseCosts[Math.min(tierIdx + 1, 3)];
+          }
+        } else {
+          cost = s.consCosts[tierIdx];
+        }
+        
         const originalCost = cost;
         if (useReservations && s.eligible) {
           cost = Math.round(cost * 0.65);
         }
-        return { ...s, cost, originalCost, reserved: useReservations && s.eligible };
+        
+        return {
+          ...s,
+          cost,
+          originalCost,
+          reserved: useReservations && s.eligible
+        };
       });
 
       const baseMonthly = rows.reduce((a, r) => a + r.cost, 0);
@@ -405,24 +556,25 @@
       const savings = baseOriginal - baseMonthly;
       const savingsPercent = Math.round(savings / baseOriginal * 100);
 
-      // Calculate add-ons
-      let addonsTotal = 0;
-      const addonsSelected = [];
-      for (const [key, costs] of Object.entries(ADDON_COSTS)) {
-        if (document.getElementById('addon-' + key).checked) {
-          const cost = costs[tierIdx];
-          addonsTotal += cost;
-          addonsSelected.push({ key, label: ADDON_LABELS[key], cost });
-        }
-      }
-
-      const finalMonthly = baseMonthly + addonsTotal;
-
-      document.getElementById('monthlyCost').textContent = formatCurrency(finalMonthly);
-      document.getElementById('costDetail').textContent = addonsTotal > 0 ? `${addonsSelected.length} add-on(s) selected` : 'conservative + reservations';
-      document.getElementById('annualCost').textContent = formatCurrency(finalMonthly * 12);
+      document.getElementById('monthlyCost').textContent = formatCurrency(baseMonthly);
+      document.getElementById('annualCost').textContent = formatCurrency(baseMonthly * 12);
       document.getElementById('percentSave').textContent = savingsPercent + '%';
       document.getElementById('amountSave').textContent = formatCurrency(savings) + '/mo';
+
+      // Reservation detail
+      if (useReservations) {
+        const upfront = Math.round(baseOriginal * 12 * 0.35);
+        const amortized = Math.round(upfront / 12);
+        const breakeven = Math.ceil(upfront / savings);
+        
+        document.getElementById('reservationsDetail').style.display = 'block';
+        document.getElementById('upfrontCost').textContent = formatCurrency(upfront);
+        document.getElementById('amortizedCost').textContent = formatCurrency(amortized);
+        document.getElementById('breakevenMonths').textContent = breakeven;
+        document.getElementById('monthlySavings').textContent = formatCurrency(savings);
+      } else {
+        document.getElementById('reservationsDetail').style.display = 'none';
+      }
 
       // Service table
       const cats = {};
@@ -439,39 +591,14 @@
           html += `<tr class="cat-row"><td><strong>${r.cat}</strong></td><td></td><td class="text-right"><strong>${formatCurrency(cats[r.cat])}</strong></td><td class="text-right"><strong>${formatCurrency(cats[r.cat] * 12)}</strong></td></tr>`;
           lastCat = r.cat;
         }
-        const badge = r.reserved ? ' <span class="badge badge-addon">reserved</span>' : '';
+        const badge = r.reserved ? ' <span class="badge badge-reserved">reserved</span>' : '';
         html += `<tr><td>${r.name}${badge}</td><td>${useReservations && r.eligible ? 'Reserved' : 'Conservative'}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
       });
-
-      if (addonsTotal > 0) {
-        html += `<tr class="cat-row"><td><strong>Optional Add-Ons</strong></td><td></td><td class="text-right"><strong>${formatCurrency(addonsTotal)}</strong></td><td class="text-right"><strong>${formatCurrency(addonsTotal * 12)}</strong></td></tr>`;
-        addonsSelected.forEach(a => {
-          html += `<tr><td>${a.label} <span class="badge badge-addon">optional</span></td><td>Premium</td><td class="text-right">${formatCurrency(a.cost)}</td><td class="text-right">${formatCurrency(a.cost * 12)}</td></tr>`;
-        });
-      }
-
       document.getElementById('serviceTable').innerHTML = html;
-
-      // Add-ons detail table
-      if (addonsSelected.length > 0) {
-        let addonsHtml = '';
-        addonsSelected.forEach(a => {
-          addonsHtml += `<tr><td>${a.label}</td><td class="text-right">${formatCurrency(a.cost)}/mo</td></tr>`;
-        });
-        addonsHtml += `<tr class="cat-row"><td><strong>Total Add-Ons</strong></td><td class="text-right"><strong>${formatCurrency(addonsTotal)}/mo</strong></td></tr>`;
-        document.getElementById('addonsTable').innerHTML = addonsHtml;
-        document.getElementById('addonsDetail').style.display = 'block';
-      } else {
-        document.getElementById('addonsDetail').style.display = 'none';
-      }
 
       // Chart
       const catLabels = Object.keys(cats);
       const catData = catLabels.map(c => cats[c]);
-      if (addonsTotal > 0) {
-        catLabels.push('Add-Ons');
-        catData.push(addonsTotal);
-      }
       const catColors = {
         'Compute': '#0078d4',
         'Database': '#7030a0',
@@ -479,8 +606,7 @@
         'Storage': '#ffc900',
         'Security & Identity': '#d83b01',
         'Monitoring': '#038387',
-        'External': '#e81123',
-        'Add-Ons': '#ff9900'
+        'External': '#e81123'
       };
       const catCols = catLabels.map(c => catColors[c] || '#ccc');
 
@@ -533,15 +659,18 @@
 
       // Tip
       const tipBox = document.getElementById('tipBox');
-      if (addonsTotal > 0) {
-        tipBox.innerHTML = `<strong>✓ Add-Ons Selected:</strong> ${addonsSelected.length} premium features enabled for ${formatCurrency(addonsTotal)}/mo. These add ${formatCurrency(addonsTotal * 12)}/year to your total cost.`;
+      if (useReservations) {
+        const upfront = Math.round(baseOriginal * 12 * 0.35);
+        const breakeven = Math.ceil(upfront / savings);
+        tipBox.innerHTML = `<strong>✓ Reservations Active:</strong> ${savingsPercent}% savings applied to eligible services. Upfront cost of ${formatCurrency(upfront)} is recovered in <strong>${breakeven} months</strong>. After that, save ${formatCurrency(savings)}/mo for the full year.`;
       } else {
-        tipBox.innerHTML = `<strong>Base Configuration:</strong> Conservative mode with ${useReservations ? '35% reservation savings' : 'pay-as-you-go pricing'} applied. No optional add-ons selected.`;
+        tipBox.innerHTML = `<strong>Enable Reservations</strong> above for an additional ${savingsPercent}% savings with zero operational risk. Typical payback: 7-8 months.`;
       }
     }
 
     function exportToCSV() {
       const controllers = document.getElementById('controllers').value;
+      const tierIdx = getTierIndex(parseInt(controllers));
       const rows = document.querySelectorAll('#serviceTable tr');
       let csv = 'Azure Cost Estimate\n\n';
       csv += 'Configuration\n';
@@ -576,10 +705,6 @@
       document.getElementById('credEvents').value = '10';
       document.getElementById('alarmEvents').value = '2';
       document.getElementById('reservationsMode').checked = true;
-      document.getElementById('addon-sql-buffer').checked = false;
-      document.getElementById('addon-sql-geo').checked = false;
-      document.getElementById('addon-sql-backup').checked = false;
-      document.getElementById('addon-cosmos-backup').checked = false;
       calculate();
     }
 
