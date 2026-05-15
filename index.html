@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Azure Cost Calculator - With Optional Add-Ons</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    header { background: linear-gradient(135deg, #0078d4 0%, #2e7de9 100%); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; }
+    header h1 { font-size: 28px; margin-bottom: 10px; }
+    header p { font-size: 14px; opacity: 0.9; }
+    .section { background: white; padding: 25px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #0078d4; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group { margin-bottom: 15px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: #666; margin-bottom: 5px; }
+    input[type="range"] { width: 100%; }
+    input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .input-row { display: grid; grid-template-columns: 1fr 150px; gap: 15px; align-items: flex-end; }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
+    .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .checkbox-group label { margin: 0; cursor: pointer; user-select: none; }
+    .addon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+    .addon-card { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 15px; cursor: pointer; transition: all 0.2s; }
+    .addon-card:hover { border-color: #0078d4; background: #f0f7ff; }
+    .addon-card input[type="checkbox"] { width: 16px; height: 16px; margin-right: 8px; }
+    .addon-title { font-weight: 600; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; }
+    .addon-desc { font-size: 11px; color: #666; margin-bottom: 6px; line-height: 1.4; }
+    .addon-cost { font-size: 12px; font-weight: 600; color: #0078d4; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .metric-card { background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #0078d4; }
+    .metric-label { font-size: 12px; color: #666; margin-bottom: 5px; text-transform: uppercase; }
+    .metric-value { font-size: 24px; font-weight: 600; color: #0078d4; }
+    .metric-sub { font-size: 11px; color: #999; margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 15px 0; }
+    th { background: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; color: #666; border-bottom: 1px solid #e0e0e0; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e0e0e0; }
+    tr:hover { background: #f8f9fa; }
+    .cat-row { background: #f0f0f0; font-weight: 600; }
+    .cat-row:hover { background: #f0f0f0; }
+    .text-right { text-align: right; }
+    .text-muted { color: #999; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; margin-left: 8px; }
+    .badge-addon { background: #fff3cd; color: #856404; }
+    .chart-container { position: relative; height: 400px; margin: 20px 0; }
+    .saving { color: #28a745; font-weight: 600; }
+    .tip-box { background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; border-radius: 6px; margin: 15px 0; font-size: 13px; color: #0c5460; }
+    button { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; margin: 5px 5px 5px 0; }
+    button:hover { background: #006abc; }
+    .button-secondary { background: #6c757d; }
+    .button-secondary:hover { background: #5a6268; }
+    .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+    @media (max-width: 768px) { .input-row { grid-template-columns: 1fr; } .addon-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Azure Cost Calculator</h1>
+      <p>Conservative Configuration + 1-Year Reservations + Optional Add-Ons</p>
+    </header>
+
+    <!-- INPUTS -->
+    <div class="section">
+      <div class="section-title">Configuration</div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #0078d4;">Select Your Tier</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 15px;">
+          <button onclick="selectTier(1, 'Starter')" style="padding: 12px; background: #f0f0f0; color: #333; border: 2px solid #ddd; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-starter">
+            <div style="font-weight: 600; margin-bottom: 4px;">Starter</div>
+            <div style="font-size: 11px; color: #666;">1-50 controllers</div>
+          </button>
+          <button onclick="selectTier(2, 'Standard')" style="padding: 12px; background: #f0f0f0; color: #333; border: 2px solid #ddd; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-standard">
+            <div style="font-weight: 600; margin-bottom: 4px;">Standard</div>
+            <div style="font-size: 11px; color: #666;">51-500 controllers</div>
+          </button>
+          <button onclick="selectTier(3, 'Professional')" style="padding: 12px; background: #0078d4; color: white; border: 2px solid #0078d4; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-professional">
+            <div style="font-weight: 600; margin-bottom: 4px;">Professional</div>
+            <div style="font-size: 11px; opacity: 0.9;">501-2,000 controllers</div>
+          </button>
+          <button onclick="selectTier(4, 'Enterprise')" style="padding: 12px; background: #f0f0f0; color: #333; border: 2px solid #ddd; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-enterprise">
+            <div style="font-weight: 600; margin-bottom: 4px;">Enterprise</div>
+            <div style="font-size: 11px; color: #666;">2,000+ controllers</div>
+          </button>
+        </div>
+        <div style="font-size: 12px; color: #666; text-align: center;">Or adjust controllers slider below for custom counts</div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Controllers (ACS-1EUL)</label>
+          <input type="range" id="controllers" min="1" max="3000" value="2000" step="1">
+        </div>
+        <div class="input-group">
+          <input type="text" id="ctrl-display" value="2,000" readonly>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Heartbeat Interval (seconds or hours)</label>
+          <input type="range" id="hbInterval" min="10" max="86400" value="30" step="10">
+        </div>
+        <div class="input-group">
+          <input type="text" id="hb-display" value="30s" readonly>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Credential Events (per hour per controller)</label>
+          <input type="range" id="credEvents" min="0" max="50" value="10" step="1">
+        </div>
+        <div class="input-group">
+          <input type="text" id="cred-display" value="10" readonly>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div class="input-group">
+          <label>Alarm Events (per hour per controller)</label>
+          <input type="range" id="alarmEvents" min="0" max="20" value="2" step="1">
+        </div>
+        <div class="input-group">
+          <input type="text" id="alarm-display" value="2" readonly>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <div class="checkbox-group">
+          <input type="checkbox" id="conservativeMode" checked disabled>
+          <label for="conservativeMode">✓ Conservative Configuration (always enabled)</label>
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="reservationsMode" checked onchange="calculate()">
+          <label for="reservationsMode">1-Year Azure Reservations (35% savings)</label>
+        </div>
+      </div>
+
+      <!-- OPTIONAL ADD-ONS -->
+      <div style="margin-top: 20px;">
+        <div style="font-size: 13px; font-weight: 600; color: #0078d4; margin-bottom: 12px; text-transform: uppercase;">Optional Add-Ons (Premium Features)</div>
+        <div class="addon-grid">
+          <div class="addon-card" onclick="toggleAddon('sql-buffer', event)">
+            <div class="addon-title">
+              <input type="checkbox" id="addon-sql-buffer" onchange="calculate()">
+              <label for="addon-sql-buffer" style="margin:0; cursor:pointer;">SQL Transaction Buffer</label>
+            </div>
+            <div class="addon-desc">+50% DTU on Alarm Mgmt + Comm Service for peak throughput</div>
+            <div class="addon-cost">+$15 - $420/mo</div>
+          </div>
+
+          <div class="addon-card" onclick="toggleAddon('sql-geo', event)">
+            <div class="addon-title">
+              <input type="checkbox" id="addon-sql-geo" onchange="calculate()">
+              <label for="addon-sql-geo" style="margin:0; cursor:pointer;">SQL HA / Geo-Failover</label>
+            </div>
+            <div class="addon-desc">Active Geo-Replication to East US for Alarm + Comm</div>
+            <div class="addon-cost">+$60 - $1,190/mo</div>
+          </div>
+
+          <div class="addon-card" onclick="toggleAddon('sql-backup', event)">
+            <div class="addon-title">
+              <input type="checkbox" id="addon-sql-backup" onchange="calculate()">
+              <label for="addon-sql-backup" style="margin:0; cursor:pointer;">SQL Backup Plan</label>
+            </div>
+            <div class="addon-desc">PITR (35-day) + LTR on all 8 SQL databases</div>
+            <div class="addon-cost">+$15 - $150/mo</div>
+          </div>
+
+          <div class="addon-card" onclick="toggleAddon('cosmos-backup', event)">
+            <div class="addon-title">
+              <input type="checkbox" id="addon-cosmos-backup" onchange="calculate()">
+              <label for="addon-cosmos-backup" style="margin:0; cursor:pointer;">Cosmos DB Multi-Region</label>
+            </div>
+            <div class="addon-desc">Continuous backup + East US replica for Log Mgmt</div>
+            <div class="addon-cost">+$25 - $350/mo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="section">
+      <div class="section-title">Summary</div>
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-label">Selected Tier</div>
+          <div class="metric-value" id="tierDisplay">Professional</div>
+          <div class="metric-sub" id="tierSub">501-2000 controllers</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Monthly Cost</div>
+          <div class="metric-value" id="monthlyCost">$2,150</div>
+          <div class="metric-sub" id="costDetail">with add-ons</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Annual Cost (Yr 2+)</div>
+          <div class="metric-value" id="annualCost">$25,800</div>
+          <div class="metric-sub">recurring</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Savings vs Standard</div>
+          <div class="metric-value saving" id="percentSave">32%</div>
+          <div class="metric-sub" id="amountSave">$1,050/mo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="section">
+      <div class="section-title">Cost by Category</div>
+      <div class="chart-container">
+        <canvas id="costChart"></canvas>
+      </div>
+    </div>
+
+    <!-- SERVICE BREAKDOWN -->
+    <div class="section">
+      <div class="section-title">Service Breakdown</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Configuration</th>
+            <th class="text-right">Monthly</th>
+            <th class="text-right">Annual</th>
+          </tr>
+        </thead>
+        <tbody id="serviceTable">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ADD-ONS DETAIL -->
+    <div class="section" id="addonsDetail" style="display:none;">
+      <div class="section-title">Selected Add-Ons Detail</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Add-On</th>
+            <th class="text-right">Monthly Cost</th>
+          </tr>
+        </thead>
+        <tbody id="addonsTable">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TIP -->
+    <div class="section">
+      <div class="tip-box" id="tipBox">
+        Configure the parameters above to calculate your optimized Azure costs.
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="section" style="text-align: center;">
+      <button onclick="exportToCSV()">📥 Export to CSV (for Excel)</button>
+      <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
+      <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
+    </div>
+
+    <div class="footer">
+      <p>Azure Cost Calculator | Conservative Configuration + Phase 1 Optimizations + Optional Add-Ons</p>
+      <p>Estimates based on West US pricing. Actual costs may vary. See Azure Pricing for current rates.</p>
+    </div>
+  </div>
+
+  <script>
+    const TIERS = [
+      { name: 'Starter', max: 50 },
+      { name: 'Standard', max: 500 },
+      { name: 'Professional', max: 2000 },
+      { name: 'Enterprise', max: 99999 }
+    ];
+
+    const ADDON_COSTS = {
+      'sql-buffer': [15, 105, 210, 420],
+      'sql-geo': [60, 300, 600, 1190],
+      'sql-backup': [15, 40, 80, 150],
+      'cosmos-backup': [25, 55, 200, 350]
+    };
+
+    const ADDON_LABELS = {
+      'sql-buffer': 'SQL Transaction Buffer',
+      'sql-geo': 'SQL HA / Geo-Failover',
+      'sql-backup': 'SQL Backup Plan',
+      'cosmos-backup': 'Cosmos DB Multi-Region'
+    };
+
+    const SERVICES = [
+      { cat: 'Compute', name: 'AKS cluster', consCosts: [213, 370, 476, 686], eligible: true },
+      { cat: 'Compute', name: 'App Service', consCosts: [47, 94, 94, 189], eligible: true },
+      { cat: 'Compute', name: 'Azure Functions', consCosts: [5, 10, 20, 30], eligible: false },
+      { cat: 'Database', name: 'SQL Light DBs (elastic pool)', consCosts: [25, 90, 180, 360], eligible: true },
+      { cat: 'Database', name: 'SQL – Comm Service', consCosts: [15, 75, 150, 300], eligible: true },
+      { cat: 'Database', name: 'SQL – Alarm Mgmt', consCosts: [15, 75, 150, 300], eligible: true },
+      { cat: 'Database', name: 'Cosmos DB – Log Mgmt', consCosts: [0, 0, 450, 450], eligible: true },
+      { cat: 'Networking', name: 'App Gateway WAF_v2', consCosts: [144, 200, 280, 400], eligible: false },
+      { cat: 'Networking', name: 'Azure Load Balancer', consCosts: [25, 25, 35, 50], eligible: false },
+      { cat: 'Networking', name: 'Virtual Network', consCosts: [5, 5, 10, 15], eligible: false },
+      { cat: 'Storage', name: 'Azure Blob Storage', consCosts: [5, 15, 30, 60], eligible: true },
+      { cat: 'Storage', name: 'Backup / Snapshots', consCosts: [10, 30, 60, 120], eligible: false },
+      { cat: 'Security & Identity', name: 'Azure Key Vault', consCosts: [5, 10, 15, 20], eligible: false },
+      { cat: 'Monitoring', name: 'Application Insights', consCosts: [8, 20, 50, 100], eligible: false },
+      { cat: 'Monitoring', name: 'Log Analytics Workspace', consCosts: [8, 25, 65, 125], eligible: false },
+      { cat: 'Monitoring', name: 'Monitor Alerts', consCosts: [5, 5, 10, 15], eligible: false },
+      { cat: 'External', name: 'Azure Communication Svc', consCosts: [10, 25, 50, 100], eligible: false }
+    ];
+
+    let chart = null;
+
+    function getTierIndex(controllers) {
+      return TIERS.findIndex(t => controllers <= t.max);
+    }
+
+    function selectTier(tierIdx, tierName) {
+      // Set controller count based on tier
+      const tierRanges = {
+        1: 25,    // Starter: mid-range of 1-50
+        2: 250,   // Standard: mid-range of 51-500
+        3: 1000,  // Professional: mid-range of 501-2000
+        4: 3000   // Enterprise: high end of 2000+
+      };
+      
+      document.getElementById('controllers').value = tierRanges[tierIdx];
+      
+      // Update button styles
+      document.getElementById('btn-starter').style.background = tierIdx === 1 ? '#0078d4' : '#f0f0f0';
+      document.getElementById('btn-starter').style.color = tierIdx === 1 ? 'white' : '#333';
+      document.getElementById('btn-starter').style.borderColor = tierIdx === 1 ? '#0078d4' : '#ddd';
+      
+      document.getElementById('btn-standard').style.background = tierIdx === 2 ? '#0078d4' : '#f0f0f0';
+      document.getElementById('btn-standard').style.color = tierIdx === 2 ? 'white' : '#333';
+      document.getElementById('btn-standard').style.borderColor = tierIdx === 2 ? '#0078d4' : '#ddd';
+      
+      document.getElementById('btn-professional').style.background = tierIdx === 3 ? '#0078d4' : '#f0f0f0';
+      document.getElementById('btn-professional').style.color = tierIdx === 3 ? 'white' : '#333';
+      document.getElementById('btn-professional').style.borderColor = tierIdx === 3 ? '#0078d4' : '#ddd';
+      
+      document.getElementById('btn-enterprise').style.background = tierIdx === 4 ? '#0078d4' : '#f0f0f0';
+      document.getElementById('btn-enterprise').style.color = tierIdx === 4 ? 'white' : '#333';
+      document.getElementById('btn-enterprise').style.borderColor = tierIdx === 4 ? '#0078d4' : '#ddd';
+      
+      calculate();
+    }
+
+    function formatCurrency(num) {
+      return '$' + Math.round(num).toLocaleString();
+    }
+
+    function formatNumber(num) {
+      if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+      if (num >= 1e3) return (num / 1e3).toFixed(0) + 'K';
+      return Math.round(num).toString();
+    }
+
+    function toggleAddon(addonId, event) {
+      if (event.target.tagName !== 'INPUT') {
+        const checkbox = document.getElementById('addon-' + addonId);
+        checkbox.checked = !checkbox.checked;
+        calculate();
+      }
+    }
+
+    function calculate() {
+      const controllers = parseInt(document.getElementById('controllers').value);
+      const hbInterval = parseInt(document.getElementById('hbInterval').value);
+      const credEvents = parseInt(document.getElementById('credEvents').value);
+      const alarmEvents = parseInt(document.getElementById('alarmEvents').value);
+      const useReservations = document.getElementById('reservationsMode').checked;
+
+      const tierIdx = getTierIndex(controllers);
+      const tier = TIERS[tierIdx];
+
+      document.getElementById('ctrl-display').value = controllers.toLocaleString();
+      const hbVal = hbInterval;
+      if (hbVal >= 3600) {
+        document.getElementById('hb-display').value = (hbVal / 3600).toFixed(1) + 'h';
+      } else {
+        document.getElementById('hb-display').value = hbVal + 's';
+      }
+      document.getElementById('cred-display').value = credEvents;
+      document.getElementById('alarm-display').value = alarmEvents;
+      document.getElementById('tierDisplay').textContent = tier.name;
+      const tierRanges = ['1-50', '51-500', '501-2000', '2000+'];
+      document.getElementById('tierSub').textContent = tierRanges[tierIdx] + ' controllers';
+
+      // Calculate service costs
+      const rows = SERVICES.map(s => {
+        let cost = s.consCosts[tierIdx];
+        const originalCost = cost;
+        if (useReservations && s.eligible) {
+          cost = Math.round(cost * 0.65);
+        }
+        return { ...s, cost, originalCost, reserved: useReservations && s.eligible };
+      });
+
+      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0);
+      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0);
+      const savings = baseOriginal - baseMonthly;
+      const savingsPercent = Math.round(savings / baseOriginal * 100);
+
+      // Calculate add-ons
+      let addonsTotal = 0;
+      const addonsSelected = [];
+      for (const [key, costs] of Object.entries(ADDON_COSTS)) {
+        if (document.getElementById('addon-' + key).checked) {
+          const cost = costs[tierIdx];
+          addonsTotal += cost;
+          addonsSelected.push({ key, label: ADDON_LABELS[key], cost });
+        }
+      }
+
+      const finalMonthly = baseMonthly + addonsTotal;
+
+      document.getElementById('monthlyCost').textContent = formatCurrency(finalMonthly);
+      document.getElementById('costDetail').textContent = addonsTotal > 0 ? `${addonsSelected.length} add-on(s) selected` : 'conservative + reservations';
+      document.getElementById('annualCost').textContent = formatCurrency(finalMonthly * 12);
+      document.getElementById('percentSave').textContent = savingsPercent + '%';
+      document.getElementById('amountSave').textContent = formatCurrency(savings) + '/mo';
+
+      // Service table
+      const cats = {};
+      rows.forEach(r => {
+        if (!cats[r.cat]) cats[r.cat] = 0;
+        cats[r.cat] += r.cost;
+      });
+
+      let html = '';
+      let lastCat = '';
+      rows.forEach(r => {
+        if (r.cost === 0 && r.name.includes('Light')) return;
+        if (r.cat !== lastCat) {
+          html += `<tr class="cat-row"><td><strong>${r.cat}</strong></td><td></td><td class="text-right"><strong>${formatCurrency(cats[r.cat])}</strong></td><td class="text-right"><strong>${formatCurrency(cats[r.cat] * 12)}</strong></td></tr>`;
+          lastCat = r.cat;
+        }
+        const badge = r.reserved ? ' <span class="badge badge-addon">reserved</span>' : '';
+        html += `<tr><td>${r.name}${badge}</td><td>${useReservations && r.eligible ? 'Reserved' : 'Conservative'}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
+      });
+
+      if (addonsTotal > 0) {
+        html += `<tr class="cat-row"><td><strong>Optional Add-Ons</strong></td><td></td><td class="text-right"><strong>${formatCurrency(addonsTotal)}</strong></td><td class="text-right"><strong>${formatCurrency(addonsTotal * 12)}</strong></td></tr>`;
+        addonsSelected.forEach(a => {
+          html += `<tr><td>${a.label} <span class="badge badge-addon">optional</span></td><td>Premium</td><td class="text-right">${formatCurrency(a.cost)}</td><td class="text-right">${formatCurrency(a.cost * 12)}</td></tr>`;
+        });
+      }
+
+      document.getElementById('serviceTable').innerHTML = html;
+
+      // Add-ons detail table
+      if (addonsSelected.length > 0) {
+        let addonsHtml = '';
+        addonsSelected.forEach(a => {
+          addonsHtml += `<tr><td>${a.label}</td><td class="text-right">${formatCurrency(a.cost)}/mo</td></tr>`;
+        });
+        addonsHtml += `<tr class="cat-row"><td><strong>Total Add-Ons</strong></td><td class="text-right"><strong>${formatCurrency(addonsTotal)}/mo</strong></td></tr>`;
+        document.getElementById('addonsTable').innerHTML = addonsHtml;
+        document.getElementById('addonsDetail').style.display = 'block';
+      } else {
+        document.getElementById('addonsDetail').style.display = 'none';
+      }
+
+      // Chart
+      const catLabels = Object.keys(cats);
+      const catData = catLabels.map(c => cats[c]);
+      if (addonsTotal > 0) {
+        catLabels.push('Add-Ons');
+        catData.push(addonsTotal);
+      }
+      const catColors = {
+        'Compute': '#0078d4',
+        'Database': '#7030a0',
+        'Networking': '#107c10',
+        'Storage': '#ffc900',
+        'Security & Identity': '#d83b01',
+        'Monitoring': '#038387',
+        'External': '#e81123',
+        'Add-Ons': '#ff9900'
+      };
+      const catCols = catLabels.map(c => catColors[c] || '#ccc');
+
+      if (chart) {
+        chart.data.labels = catLabels;
+        chart.data.datasets[0].data = catData;
+        chart.data.datasets[0].backgroundColor = catCols;
+        chart.update();
+      } else {
+        const ctx = document.getElementById('costChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: catLabels,
+            datasets: [{
+              data: catData,
+              backgroundColor: catCols,
+              borderRadius: 4,
+              barThickness: 30
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => formatCurrency(ctx.raw) + '/mo'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  callback: v => formatCurrency(v),
+                  font: { size: 11 }
+                },
+                grid: { color: 'rgba(0,0,0,0.05)' }
+              },
+              y: {
+                ticks: { font: { size: 12 } },
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // Tip
+      const tipBox = document.getElementById('tipBox');
+      if (addonsTotal > 0) {
+        tipBox.innerHTML = `<strong>✓ Add-Ons Selected:</strong> ${addonsSelected.length} premium features enabled for ${formatCurrency(addonsTotal)}/mo. These add ${formatCurrency(addonsTotal * 12)}/year to your total cost.`;
+      } else {
+        tipBox.innerHTML = `<strong>Base Configuration:</strong> Conservative mode with ${useReservations ? '35% reservation savings' : 'pay-as-you-go pricing'} applied. No optional add-ons selected.`;
+      }
+    }
+
+    function exportToCSV() {
+      const controllers = document.getElementById('controllers').value;
+      const rows = document.querySelectorAll('#serviceTable tr');
+      let csv = 'Azure Cost Estimate\n\n';
+      csv += 'Configuration\n';
+      csv += 'Controllers,' + controllers + '\n';
+      csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
+      csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
+      csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n\n';
+      csv += 'Service Costs\n';
+      csv += 'Service,Configuration,Monthly,Annual\n';
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length > 0) {
+          csv += cells[0].textContent + ',' + cells[1].textContent + ',' + cells[2].textContent + ',' + cells[3].textContent + '\n';
+        }
+      });
+      csv += '\n' + document.getElementById('monthlyCost').textContent + '/mo\n';
+      csv += document.getElementById('annualCost').textContent + '/year\n';
+
+      const link = document.createElement('a');
+      link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      link.download = 'azure-cost-estimate.csv';
+      link.click();
+    }
+
+    function printPage() {
+      window.print();
+    }
+
+    function resetToDefaults() {
+      document.getElementById('controllers').value = '2000';
+      document.getElementById('hbInterval').value = '30';
+      document.getElementById('credEvents').value = '10';
+      document.getElementById('alarmEvents').value = '2';
+      document.getElementById('reservationsMode').checked = true;
+      document.getElementById('addon-sql-buffer').checked = false;
+      document.getElementById('addon-sql-geo').checked = false;
+      document.getElementById('addon-sql-backup').checked = false;
+      document.getElementById('addon-cosmos-backup').checked = false;
+      calculate();
+    }
+
+    // Event listeners
+    document.getElementById('controllers').addEventListener('input', calculate);
+    document.getElementById('hbInterval').addEventListener('input', calculate);
+    document.getElementById('credEvents').addEventListener('input', calculate);
+    document.getElementById('alarmEvents').addEventListener('input', calculate);
+
+    // Initial calculation
+    calculate();
+  </script>
+</body>
+</html>
