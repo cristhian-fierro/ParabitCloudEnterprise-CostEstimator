@@ -58,13 +58,17 @@
     .button-secondary:hover { background: #5a6268; }
     .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
     @media (max-width: 768px) { .input-row { grid-template-columns: 1fr; } }
+    .config-btn { background: #f0fff4; color: #157345; border: 2px solid #b7e5c9; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
+    .config-btn:hover { background: #d4f5e2; border-color: #0f9b56; }
+    .config-btn.active { background: #0f9b56; color: white; border-color: #0f9b56; }
+    .config-panel { background: #f0fff4; border-left: 4px solid #0f9b56; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Azure Cost Calculator</h1>
-      <p>Conservative Configuration + 1-Year Reservations | Zero Operational Risk</p>
+      <p>Controller Tiers + Service Configuration | West US pricing | 1-Year Reservations available</p>
     </header>
 
     <!-- INPUTS -->
@@ -97,6 +101,29 @@
       <div id="tierDetailsPanel" style="background: #f9f9f9; border-left: 4px solid #0078d4; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
         <div style="font-weight: 600; color: #0078d4; margin-bottom: 10px;">📋 Tier Configuration Details</div>
         <div id="tierDetailsContent" style="font-size: 12px; line-height: 1.6; color: #333;"></div>
+      </div>
+
+      <!-- SERVICE CONFIGURATION -->
+      <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label style="display: block; margin-bottom: 10px; font-weight: 600; color: #0f9b56;">Select Service Configuration</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+          <button class="config-btn" id="cfg-minimum" onclick="selectConfig(0)">
+            <div style="font-weight: 600; margin-bottom: 4px;">Minimum</div>
+            <div style="font-size: 11px; opacity: 0.85;">Cost-optimized</div>
+          </button>
+          <button class="config-btn active" id="cfg-standard" onclick="selectConfig(1)">
+            <div style="font-weight: 600; margin-bottom: 4px;">Standard</div>
+            <div style="font-size: 11px; opacity: 0.85;">Balanced performance</div>
+          </button>
+          <button class="config-btn" id="cfg-advanced" onclick="selectConfig(2)">
+            <div style="font-weight: 600; margin-bottom: 4px;">Advanced</div>
+            <div style="font-size: 11px; opacity: 0.85;">Enterprise-grade HA</div>
+          </button>
+        </div>
+        <div id="configDetailsPanel" class="config-panel">
+          <div style="font-weight: 600; color: #0f9b56; margin-bottom: 8px;">🔧 Service Configuration Details</div>
+          <div id="configDetailsContent" style="font-size: 12px; line-height: 1.6; color: #333;"></div>
+        </div>
       </div>
 
       <div class="input-row">
@@ -151,6 +178,17 @@
       </div>
     </div>
 
+    <!-- OPTIONAL ADD-ONS -->
+    <div class="section">
+      <div class="section-title">Optional Add-Ons</div>
+      <p style="font-size:12px; color:#666; margin-bottom:18px;">Enable premium features for your deployment. Prices are tier- and config-aware, based on Azure West US Pricing Calculator rates.</p>
+      <div id="addonsContainer"></div>
+      <div id="addonsTotalRow" style="margin-top:15px; padding-top:15px; border-top:2px solid #eee; display:none; justify-content:space-between; align-items:center;">
+        <span style="font-weight:600; color:#333;">Add-Ons Monthly Total</span>
+        <span style="font-weight:700; font-size:18px; color:#d17f00;" id="addonsTotal">$0</span>
+      </div>
+    </div>
+
     <!-- METRICS -->
     <div class="section">
       <div class="section-title">Summary</div>
@@ -159,6 +197,11 @@
           <div class="metric-label">Selected Tier</div>
           <div class="metric-value" id="tierDisplay">Professional</div>
           <div class="metric-sub" id="tierSub">501-2000 controllers</div>
+        </div>
+        <div class="metric-card" style="border-left-color: #0f9b56;">
+          <div class="metric-label">Service Config</div>
+          <div class="metric-value" id="configDisplay" style="color: #0f9b56;">Standard</div>
+          <div class="metric-sub" id="configSub">Balanced performance</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Monthly Cost</div>
@@ -284,6 +327,101 @@
       </table>
     </div>
 
+    <!-- SERVICE CONFIGURATION COMPARISON -->
+    <div class="section">
+      <div class="section-title">Service Configuration Comparison</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 22%;">Service</th>
+            <th style="width: 26%; color: #107c10;">Minimum — Cost-Optimized</th>
+            <th style="width: 26%; color: #0078d4;">Standard — Balanced</th>
+            <th style="width: 26%; color: #7030a0;">Advanced — Enterprise HA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>AKS Cluster</strong></td>
+            <td>2-4× D2s_v5 (no HA, no Uptime SLA)</td>
+            <td>3-7× D4s_v4 reserved (1-yr), Uptime SLA</td>
+            <td>3-10× D8s_v5 reserved, zone-redundant, Uptime SLA</td>
+          </tr>
+          <tr>
+            <td><strong>App Service</strong></td>
+            <td>B2 Basic (1-3 instances)</td>
+            <td>S2 Standard (1-4 instances)</td>
+            <td>P3v3 Premium reserved, zone-redundant</td>
+          </tr>
+          <tr>
+            <td><strong>Azure Functions</strong></td>
+            <td>Consumption plan</td>
+            <td>Consumption plan</td>
+            <td>Premium EP3 (pre-warmed, no cold start)</td>
+          </tr>
+          <tr>
+            <td><strong>SQL Light DBs</strong></td>
+            <td>Basic 50 eDTU elastic pool ($73/mo)</td>
+            <td>Standard 100 eDTU elastic pool ($218/mo)</td>
+            <td>Premium P1 elastic pool ($450+/mo)</td>
+          </tr>
+          <tr>
+            <td><strong>SQL – Comm / Alarm</strong></td>
+            <td>S1 (20 DTU, $29/mo)</td>
+            <td>S3 (100 DTU, $145/mo)</td>
+            <td>P1 Premium ($450/mo), readable replica</td>
+          </tr>
+          <tr>
+            <td><strong>Cosmos DB</strong></td>
+            <td>Serverless ($0.279/M RU)</td>
+            <td>Autoscale ($0.008/hr per 100 RU/s)</td>
+            <td>Multi-region write ($0.016/hr per 100 RU/s)</td>
+          </tr>
+          <tr>
+            <td><strong>App Gateway</strong></td>
+            <td>Standard_v2 ($190/mo base)</td>
+            <td>WAF_v2 ($342/mo base)</td>
+            <td>WAF_v2 zone-redundant + advanced rules</td>
+          </tr>
+          <tr>
+            <td><strong>Azure Load Balancer</strong></td>
+            <td>Basic (free for small deployments)</td>
+            <td>Standard ($25/mo)</td>
+            <td>Standard + zone-redundant frontend</td>
+          </tr>
+          <tr>
+            <td><strong>Blob Storage</strong></td>
+            <td>Cool LRS (low access)</td>
+            <td>Hot LRS ($0.0208/GB/mo)</td>
+            <td>Hot GRS (geo-redundant, 2× storage cost)</td>
+          </tr>
+          <tr>
+            <td><strong>Key Vault</strong></td>
+            <td>Standard tier</td>
+            <td>Standard tier</td>
+            <td>Premium HSM-backed</td>
+          </tr>
+          <tr>
+            <td><strong>Entra ID</strong></td>
+            <td>Free tier</td>
+            <td>Free tier</td>
+            <td>P1 license per user ($6/user/mo)</td>
+          </tr>
+          <tr>
+            <td><strong>SLA</strong></td>
+            <td>99.5% (no HA commitment)</td>
+            <td>99.9% (Uptime SLA on AKS)</td>
+            <td>99.99% (zone-redundant, failover)</td>
+          </tr>
+          <tr>
+            <td><strong>Best For</strong></td>
+            <td>Dev/test, POC, budget-constrained</td>
+            <td>Production workloads, standard enterprise</td>
+            <td>Mission-critical, zero-downtime, regulated industries</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- SERVICE BREAKDOWN -->
     <div class="section">
       <div class="section-title">Service Breakdown</div>
@@ -354,27 +492,201 @@
     ];
 
     const SERVICES = [
-      { cat: 'Compute', name: 'AKS cluster', consCosts: [213, 370, 476, 686], eligible: true },
-      { cat: 'Compute', name: 'App Service', consCosts: [47, 94, 94, 189], eligible: true },
-      { cat: 'Compute', name: 'Azure Functions', consCosts: [5, 10, 20, 30], eligible: false },
-      { cat: 'Database', name: 'SQL Light DBs (elastic pool)', consCosts: [25, 90, 180, 360], eligible: true },
-      { cat: 'Database', name: 'SQL – Comm Service', consCosts: [15, 75, 150, 300], eligible: true },
-      { cat: 'Database', name: 'SQL – Alarm Mgmt', dynamic: 'alarm', eligible: true },
-      { cat: 'Database', name: 'Cosmos DB – Log Mgmt', dynamic: 'cosmos', eligible: true },
-      { cat: 'Networking', name: 'App Gateway WAF_v2', consCosts: [144, 200, 280, 400], eligible: false },
-      { cat: 'Networking', name: 'Azure Load Balancer', consCosts: [25, 25, 35, 50], eligible: false },
-      { cat: 'Networking', name: 'Virtual Network', consCosts: [5, 5, 10, 15], eligible: false },
-      { cat: 'Storage', name: 'Azure Blob Storage', consCosts: [5, 15, 30, 60], eligible: true },
-      { cat: 'Storage', name: 'Backup / Snapshots', consCosts: [10, 30, 60, 120], eligible: false },
-      { cat: 'Security & Identity', name: 'Azure Key Vault', consCosts: [5, 10, 15, 20], eligible: false },
-      { cat: 'Security & Identity', name: 'Entra ID', consCosts: [0, 0, 0, 0], eligible: false },
-      { cat: 'Monitoring', name: 'Application Insights', consCosts: [8, 20, 50, 100], eligible: false },
-      { cat: 'Monitoring', name: 'Log Analytics Workspace', consCosts: [8, 25, 65, 125], eligible: false },
-      { cat: 'Monitoring', name: 'Monitor Alerts', consCosts: [5, 5, 10, 15], eligible: false },
-      { cat: 'External', name: 'Azure Communication Svc', consCosts: [10, 25, 50, 100], eligible: false }
+      // Compute
+      { cat: 'Compute', name: 'AKS cluster',
+        minCosts:  [97,  193, 289, 434],
+        consCosts: [289, 385, 481, 675],
+        advCosts:  [579, 965, 1351, 1929],
+        skus: ['2-4× D2s_v5 (no HA)', '3-7× D4s_v4 reserved', '3-10× D8s_v5 zone-redundant'],
+        eligible: true },
+      { cat: 'Compute', name: 'App Service',
+        minCosts:  [110, 110, 220, 330],
+        consCosts: [146, 292, 292, 584],
+        advCosts:  [400, 730, 1460, 2190],
+        skus: ['B2 Basic', 'S2 Standard', 'P3v3 Premium reserved'],
+        eligible: true },
+      { cat: 'Compute', name: 'Azure Functions',
+        minCosts:  [5,  5,  10,  20],
+        consCosts: [5,  10, 20,  30],
+        advCosts:  [100, 175, 350, 500],
+        skus: ['Consumption', 'Consumption', 'Premium EP3'],
+        eligible: false },
+      // Database
+      { cat: 'Database', name: 'SQL Light DBs (elastic pool)',
+        minCosts:  [73,  73,  146, 219],
+        consCosts: [218, 218, 435, 653],
+        advCosts:  [450, 900, 1800, 3600],
+        skus: ['Basic 50 eDTU', 'Standard 100 eDTU', 'Premium P1 pool'],
+        eligible: true },
+      { cat: 'Database', name: 'SQL – Comm Service',
+        minCosts:  [29,  73,  145, 218],
+        consCosts: [73,  145, 218, 435],
+        advCosts:  [145, 450, 900, 1800],
+        skus: ['S1 (20 DTU)', 'S3 (100 DTU)', 'P1 Premium'],
+        eligible: true },
+      { cat: 'Database', name: 'SQL – Alarm Mgmt', dynamic: 'alarm',
+        skus: ['S1 (20 DTU)', 'S3 (100 DTU)', 'P1 Premium'],
+        eligible: true },
+      { cat: 'Database', name: 'Cosmos DB – Log Mgmt', dynamic: 'cosmos',
+        skus: ['Serverless', 'Autoscale', 'Multi-region write'],
+        eligible: true },
+      // Networking
+      { cat: 'Networking', name: 'App Gateway WAF_v2',
+        minCosts:  [190, 190, 342, 342],
+        consCosts: [342, 342, 450, 550],
+        advCosts:  [500, 650, 850, 1100],
+        skus: ['Standard_v2', 'WAF_v2', 'WAF_v2 zone-redundant'],
+        eligible: false },
+      { cat: 'Networking', name: 'Azure Load Balancer',
+        minCosts:  [0,  18, 18, 25],
+        consCosts: [25, 25, 35, 50],
+        advCosts:  [35, 50, 75, 100],
+        skus: ['Basic', 'Standard', 'Standard zone-redundant'],
+        eligible: false },
+      { cat: 'Networking', name: 'Virtual Network',
+        minCosts:  [5, 5,  5,  10],
+        consCosts: [5, 5,  10, 15],
+        advCosts:  [10, 15, 25, 35],
+        skus: ['Basic peering', 'Standard peering', 'Premium peering'],
+        eligible: false },
+      // Storage
+      { cat: 'Storage', name: 'Azure Blob Storage',
+        minCosts:  [2,  5,  15, 30],
+        consCosts: [5,  15, 30, 60],
+        advCosts:  [10, 30, 80, 150],
+        skus: ['Cool LRS', 'Hot LRS', 'Hot GRS'],
+        eligible: true },
+      { cat: 'Storage', name: 'Backup / Snapshots',
+        minCosts:  [5,  10, 25,  50],
+        consCosts: [10, 30, 60,  120],
+        advCosts:  [20, 60, 120, 250],
+        skus: ['LRS 7-day retention', 'LRS 30-day retention', 'GRS 90-day retention'],
+        eligible: false },
+      // Security & Identity
+      { cat: 'Security & Identity', name: 'Azure Key Vault',
+        minCosts:  [5, 5,  5,  10],
+        consCosts: [5, 10, 15, 20],
+        advCosts:  [10, 20, 30, 50],
+        skus: ['Standard', 'Standard', 'Premium HSM'],
+        eligible: false },
+      { cat: 'Security & Identity', name: 'Entra ID',
+        minCosts:  [0, 0, 0,  0],
+        consCosts: [0, 0, 0,  0],
+        advCosts:  [6, 6, 12, 12],
+        skus: ['Free', 'Free', 'P1 per user'],
+        eligible: false },
+      // Monitoring
+      { cat: 'Monitoring', name: 'Application Insights',
+        minCosts:  [0,  5,  15,  40],
+        consCosts: [8,  20, 50,  100],
+        advCosts:  [25, 75, 150, 300],
+        skus: ['~5GB/mo', '~8GB/mo', '~35GB/mo'],
+        eligible: false },
+      { cat: 'Monitoring', name: 'Log Analytics Workspace',
+        minCosts:  [5,  8,  25,  65],
+        consCosts: [8,  25, 65,  125],
+        advCosts:  [20, 60, 150, 300],
+        skus: ['~1GB/day', '~5GB/day', '~20GB/day'],
+        eligible: false },
+      { cat: 'Monitoring', name: 'Monitor Alerts',
+        minCosts:  [5, 5,  5,  10],
+        consCosts: [5, 5,  10, 15],
+        advCosts:  [10, 20, 30, 50],
+        skus: ['Static rules', 'Static rules', 'Dynamic + action groups'],
+        eligible: false },
+      // External
+      { cat: 'External', name: 'Azure Communication Svc',
+        minCosts:  [5,  10, 25,  50],
+        consCosts: [10, 25, 50,  100],
+        advCosts:  [25, 50, 100, 200],
+        skus: ['Pay-as-go', 'Pay-as-go', 'Enhanced messaging'],
+        eligible: false }
+    ];
+
+    // Optional add-ons — costs at Standard config; Minimum=0.5×, Advanced=2×
+    const ADD_ONS = [
+      {
+        id: 'addon-sql-txbuffer',
+        name: 'SQL DB – Transaction Buffer / Peak Throughput',
+        desc: 'Reserves extra eDTU capacity in the elastic pool to absorb transaction bursts without throttling.',
+        detail: 'Upgrades elastic pool: Basic 50→100 / Standard 100→200→400 eDTU. Priced per Azure elastic pool DTU tiers.',
+        cat: 'Database',
+        baseCosts: [50, 100, 181, 362], // Standard config, per controller tier
+        eligible: true
+      },
+      {
+        id: 'addon-sql-geo',
+        name: 'SQL DB – HA / Geo-Failover (Active Geo-Replication)',
+        desc: 'Adds a readable secondary SQL replica in a paired Azure region for disaster recovery.',
+        detail: 'Billed at same DTU tier rate as primary in secondary region. Near-zero RPO, <30s RTO.',
+        cat: 'Database',
+        baseCosts: [73, 145, 218, 435], // secondary replica at same S-tier pricing
+        eligible: false
+      },
+      {
+        id: 'addon-sql-backup',
+        name: 'SQL DB – Backup Plan (PITR + LTR)',
+        desc: 'Extends backup retention to 35-day PITR plus long-term retention (weekly, monthly, yearly).',
+        detail: 'LTR stored as RA-GRS blobs at $0.026/GB/mo. 7-day PITR is included in base price.',
+        cat: 'Storage',
+        baseCosts: [10, 25, 50, 100],
+        eligible: false
+      },
+      {
+        id: 'addon-cosmos-backup',
+        name: 'Cosmos DB – Continuous Backup & Multi-Region Reads',
+        desc: 'Enables continuous backup mode and adds one geo-redundant read replica region.',
+        detail: 'Continuous backup: $0.20/GB/mo of stored backup data. Multi-region read replica billed at primary throughput rate.',
+        cat: 'Database',
+        baseCosts: [25, 75, 150, 300],
+        eligible: false
+      }
     ];
 
     let chart = null;
+    let selectedConfig = 1; // 0=Minimum, 1=Standard, 2=Advanced
+
+    const CONFIGS = [
+      { name: 'Minimum',  subtitle: 'Cost-optimized baseline',  color: '#107c10' },
+      { name: 'Standard', subtitle: 'Balanced performance',     color: '#0078d4' },
+      { name: 'Advanced', subtitle: 'Enterprise-grade HA',      color: '#7030a0' }
+    ];
+
+    const CONFIG_DETAILS = [
+      {
+        highlight: 'Minimum — Lowest-cost Azure SKUs, suitable for dev/test or budget-constrained deployments.',
+        points: [
+          '🖥️ AKS: 2-4× D2s_v5 nodes (no HA, no Uptime SLA)',
+          '🌐 App Gateway: Standard_v2 (no WAF)',
+          '💾 SQL: Basic 50 eDTU elastic pool / S1 single DBs',
+          '☁️ Cosmos DB: Serverless ($0.279/M RU)',
+          '📦 Blob: Cool LRS storage tier',
+          '🔑 Entra ID: Free tier'
+        ]
+      },
+      {
+        highlight: 'Standard — Balanced production-grade SKUs based on real Azure West US pricing (verified via Azure Pricing API).',
+        points: [
+          '🖥️ AKS: 3-7× D4s_v4 nodes, 1-yr reserved, Uptime SLA',
+          '🌐 App Gateway: WAF_v2 ($342/mo base)',
+          '💾 SQL: Standard 100 eDTU elastic pool / S3 single DBs',
+          '☁️ Cosmos DB: Autoscale ($0.008/hr per 100 RU/s)',
+          '📦 Blob: Hot LRS ($0.0208/GB/mo)',
+          '🔑 Entra ID: Free tier'
+        ]
+      },
+      {
+        highlight: 'Advanced — Enterprise-grade, zone-redundant SKUs for mission-critical deployments with 99.99% SLA.',
+        points: [
+          '🖥️ AKS: 3-10× D8s_v5 nodes, zone-redundant, Uptime SLA',
+          '🌐 App Gateway: WAF_v2 zone-redundant + advanced rule sets',
+          '💾 SQL: Premium P1 elastic pool / P1 single DBs',
+          '☁️ Cosmos DB: Multi-region write ($0.016/hr per 100 RU/s)',
+          '📦 Blob: Hot GRS (geo-redundant)',
+          '🔑 Entra ID: P1 license per user ($6/user/mo)'
+        ]
+      }
+    ];
 
     function getTierIndex(controllers) {
       return TIERS.findIndex(t => controllers <= t.max);
@@ -470,26 +782,81 @@
       calculate();
     }
 
-    function calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx) {
+    function selectConfig(idx) {
+      selectedConfig = idx;
+      const ids = ['cfg-minimum', 'cfg-standard', 'cfg-advanced'];
+      ids.forEach((id, i) => {
+        const btn = document.getElementById(id);
+        btn.classList.toggle('active', i === idx);
+      });
+      const cfg = CONFIGS[idx];
+      const detail = CONFIG_DETAILS[idx];
+      document.getElementById('configDisplay').textContent = cfg.name;
+      document.getElementById('configDisplay').style.color = cfg.color;
+      document.getElementById('configSub').textContent = cfg.subtitle;
+      const detailEl = document.getElementById('configDetailsContent');
+      detailEl.innerHTML = `<strong>${detail.highlight}</strong><br><br>` +
+        detail.points.map(p => p).join('<br>');
+      const panel = document.getElementById('configDetailsPanel');
+      panel.style.borderLeftColor = cfg.color;
+      panel.querySelector('div').style.color = cfg.color;
+      calculate();
+    }
+
+    function getAddonCost(addon, tierIdx) {
+      const multipliers = [0.5, 1.0, 2.0]; // Minimum / Standard / Advanced
+      return Math.round(addon.baseCosts[tierIdx] * multipliers[selectedConfig]);
+    }
+
+    function initAddOns() {
+      const container = document.getElementById('addonsContainer');
+      container.innerHTML = ADD_ONS.map(addon => `
+        <div style="display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #f0f0f0;" id="row-${addon.id}">
+          <div style="padding-top:3px;">
+            <input type="checkbox" id="${addon.id}" style="width:18px;height:18px;cursor:pointer;" onchange="calculate()">
+          </div>
+          <div style="flex:1;">
+            <label for="${addon.id}" style="font-weight:600; font-size:14px; color:#333; cursor:pointer; display:block; margin-bottom:3px;">${addon.name}</label>
+            <div style="font-size:12px; color:#555; margin-bottom:3px;">${addon.desc}</div>
+            <div style="font-size:11px; color:#888;">${addon.detail}</div>
+          </div>
+          <div style="text-align:right; min-width:90px; white-space:nowrap;">
+            <div style="font-weight:700; font-size:15px; color:#d17f00;" id="price-${addon.id}">$0/mo</div>
+            <div style="font-size:11px; color:#aaa;">per month</div>
+          </div>
+        </div>`).join('');
+    }
+
+    function calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx, configIdx) {
       const hbDay = controllers * (86400 / hbInterval);
       const crDay = controllers * credEvents * 24;
       const alDay = controllers * alarmEvents * 24;
       const totalRuDay = hbDay * 5 + crDay * 5 + alDay * 10;
       const moRU = totalRuDay * 30 * 1.2;
       const ruPerSec = Math.ceil(totalRuDay / 86400);
-      
-      let cost = 0;
-      if (tierIdx <= 1) {
-        cost = (moRU / 1e6) * 0.282;
-      } else if (tierIdx === 2) {
-        const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
-        cost = (p / 100) * 6.50;
-      } else {
-        const p = Math.min(4000, ruPerSec * 2);
-        cost = (p / 100) * 6.50;
-      }
       const gb = Math.max(10, ((hbDay + crDay + alDay) * 30 * 1.8 / 1048576));
-      return Math.round(cost + gb * 0.25);
+
+      let cost = 0;
+      if (configIdx === 0) {
+        // Minimum: always serverless ($0.279/M RU)
+        cost = (moRU / 1e6) * 0.279;
+      } else if (configIdx === 1) {
+        // Standard: serverless for small tiers, autoscale for larger ($0.008/hr/100RU)
+        if (tierIdx <= 1) {
+          cost = (moRU / 1e6) * 0.279;
+        } else if (tierIdx === 2) {
+          const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
+          cost = (p / 100) * 0.008 * 730; // $0.008/hr × 730 hr/mo
+        } else {
+          const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
+          cost = (p / 100) * 0.008 * 730;
+        }
+      } else {
+        // Advanced: multi-region provisioned ($0.016/hr/100RU, 2× storage)
+        const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
+        cost = (p / 100) * 0.016 * 730;
+      }
+      return Math.round(cost + gb * (configIdx === 2 ? 0.05 : 0.025));
     }
 
     function formatCurrency(num) {
@@ -527,26 +894,31 @@
       document.getElementById('tierSub').textContent = tierRanges[tierIdx] + ' controllers';
 
       // Calculate costs
+      const alarmBaseCosts = [
+        [5,  20,  50,  100], // Minimum
+        [29, 73,  145, 218], // Standard (real S1/S3 prices)
+        [75, 200, 465, 750]  // Advanced
+      ];
       const rows = SERVICES.map(s => {
         let cost = 0;
         if (s.dynamic === 'cosmos') {
-          cost = calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx);
+          cost = calculateCosmosCost(controllers, hbInterval, credEvents, alarmEvents, tierIdx, selectedConfig);
         } else if (s.dynamic === 'alarm') {
           const alDay = controllers * alarmEvents * 24;
-          const baseCosts = [15, 75, 150, 300];
-          cost = baseCosts[tierIdx];
-          if (alDay > 500000 && tierIdx < 3) {
-            cost = baseCosts[Math.min(tierIdx + 1, 3)];
+          cost = alarmBaseCosts[selectedConfig][tierIdx];
+          if (alDay > 500000 && tierIdx < 3 && selectedConfig < 2) {
+            cost = alarmBaseCosts[selectedConfig][Math.min(tierIdx + 1, 3)];
           }
         } else {
-          cost = s.consCosts[tierIdx];
+          const costMatrix = [s.minCosts, s.consCosts, s.advCosts];
+          cost = costMatrix[selectedConfig][tierIdx];
         }
-        
+
         const originalCost = cost;
         if (useReservations && s.eligible) {
           cost = Math.round(cost * 0.65);
         }
-        
+
         return {
           ...s,
           cost,
@@ -555,10 +927,31 @@
         };
       });
 
-      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0);
-      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0);
+      // Add-on costs
+      let addonMonthly = 0;
+      const addonRows = [];
+      ADD_ONS.forEach(addon => {
+        const checked = document.getElementById(addon.id) && document.getElementById(addon.id).checked;
+        const cost = getAddonCost(addon, tierIdx);
+        // Update price display
+        const priceEl = document.getElementById('price-' + addon.id);
+        if (priceEl) priceEl.textContent = formatCurrency(cost) + '/mo';
+        if (checked) {
+          addonMonthly += cost;
+          addonRows.push({ ...addon, cost, originalCost: cost, reserved: false });
+        }
+      });
+      // Show/hide total row
+      const totalRow = document.getElementById('addonsTotalRow');
+      if (totalRow) {
+        totalRow.style.display = addonMonthly > 0 ? 'flex' : 'none';
+        document.getElementById('addonsTotal').textContent = formatCurrency(addonMonthly) + '/mo';
+      }
+
+      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0) + addonMonthly;
+      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly;
       const savings = baseOriginal - baseMonthly;
-      const savingsPercent = Math.round(savings / baseOriginal * 100);
+      const savingsPercent = baseOriginal > 0 ? Math.round(savings / baseOriginal * 100) : 0;
 
       document.getElementById('monthlyCost').textContent = formatCurrency(baseMonthly);
       document.getElementById('annualCost').textContent = formatCurrency(baseMonthly * 12);
@@ -586,17 +979,34 @@
         if (!cats[r.cat]) cats[r.cat] = 0;
         cats[r.cat] += r.cost;
       });
+      // Merge add-on costs into category totals
+      addonRows.forEach(r => {
+        if (!cats[r.cat]) cats[r.cat] = 0;
+        cats[r.cat] += r.cost;
+      });
+
+      // Merge add-on rows into their correct category position (no duplicate headers)
+      const catOrder = [];
+      rows.forEach(r => { if (!catOrder.includes(r.cat)) catOrder.push(r.cat); });
+      addonRows.forEach(r => { if (!catOrder.includes(r.cat)) catOrder.push(r.cat); });
+      const allRows = catOrder.flatMap(cat => [
+        ...rows.filter(r => r.cat === cat),
+        ...addonRows.filter(r => r.cat === cat)
+      ]);
 
       let html = '';
       let lastCat = '';
-      rows.forEach(r => {
-        if (r.cost === 0 && r.name.includes('Light')) return;
+      allRows.forEach(r => {
+        if (r.cost === 0 && r.name && r.name.includes('Light')) return;
         if (r.cat !== lastCat) {
           html += `<tr class="cat-row"><td><strong>${r.cat}</strong></td><td></td><td class="text-right"><strong>${formatCurrency(cats[r.cat])}</strong></td><td class="text-right"><strong>${formatCurrency(cats[r.cat] * 12)}</strong></td></tr>`;
           lastCat = r.cat;
         }
         const badge = r.reserved ? ' <span class="badge badge-reserved">reserved</span>' : '';
-        html += `<tr><td>${r.name}${badge}</td><td>${useReservations && r.eligible ? 'Reserved' : 'Conservative'}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
+        const addonBadge = r.baseCosts ? ' <span class="badge" style="background:#fff3e0;color:#b76c00;">add-on</span>' : '';
+        const skuLabel = r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name;
+        const configBadge = `<span style="font-size:11px; color:#666;">${skuLabel}</span>`;
+        html += `<tr><td>${r.name}${badge}${addonBadge}</td><td>${configBadge}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
       });
       document.getElementById('serviceTable').innerHTML = html;
 
@@ -663,12 +1073,13 @@
 
       // Tip
       const tipBox = document.getElementById('tipBox');
+      const configName = CONFIGS[selectedConfig].name;
       if (useReservations) {
         const upfront = Math.round(baseOriginal * 12 * 0.35);
         const breakeven = Math.ceil(upfront / savings);
-        tipBox.innerHTML = `<strong>✓ Reservations Active:</strong> ${savingsPercent}% savings applied to eligible services. Upfront cost of ${formatCurrency(upfront)} is recovered in <strong>${breakeven} months</strong>. After that, save ${formatCurrency(savings)}/mo for the full year.`;
+        tipBox.innerHTML = `<strong>✓ Reservations Active (${tier.name} tier · ${configName} config):</strong> ${savingsPercent}% savings applied to eligible services. Upfront cost of ${formatCurrency(upfront)} is recovered in <strong>${breakeven} months</strong>. After that, save ${formatCurrency(savings)}/mo for the full year.`;
       } else {
-        tipBox.innerHTML = `<strong>Enable Reservations</strong> above for an additional ${savingsPercent}% savings with zero operational risk. Typical payback: 7-8 months.`;
+        tipBox.innerHTML = `<strong>${tier.name} tier · ${configName} config:</strong> Enable Reservations above for an additional ${savingsPercent}% savings with zero operational risk. Typical payback: 7-8 months.`;
       }
     }
 
@@ -679,6 +1090,8 @@
       let csv = 'Azure Cost Estimate\n\n';
       csv += 'Configuration\n';
       csv += 'Controllers,' + controllers + '\n';
+      csv += 'Controller Tier,' + TIERS[tierIdx].name + '\n';
+      csv += 'Service Configuration,' + CONFIGS[selectedConfig].name + '\n';
       csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
       csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
       csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n\n';
@@ -709,7 +1122,7 @@
       document.getElementById('credEvents').value = '10';
       document.getElementById('alarmEvents').value = '2';
       document.getElementById('reservationsMode').checked = true;
-      calculate();
+      selectConfig(1);
     }
 
     // Event listeners
@@ -718,8 +1131,9 @@
     document.getElementById('credEvents').addEventListener('input', calculate);
     document.getElementById('alarmEvents').addEventListener('input', calculate);
 
-    // Initial calculation
-    calculate();
+    // Initial render
+    initAddOns();
+    selectConfig(1); // populate config panel, then triggers calculate()
 
     // Accordion
     function initAccordions() {
