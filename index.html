@@ -62,13 +62,18 @@
     .config-btn:hover { background: #d4f5e2; border-color: #0f9b56; }
     .config-btn.active { background: #0f9b56; color: white; border-color: #0f9b56; }
     .config-panel { background: #f0fff4; border-left: 4px solid #0f9b56; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
+    .support-btn { background: #f0f0f0; color: #333; border: 2px solid #ddd; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
+    .support-btn:hover { background: #e0eeff; border-color: #0078d4; }
+    .support-btn.active { background: #0078d4; color: white; border-color: #0078d4; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Azure Cost Calculator</h1>
-      <p>Controller Tiers + Service Configuration | West US pricing | 1-Year Reservations available</p>
+      <p>Controller Tiers + Service Configuration | West US pricing | 1-Year Reservations available
+        <span id="appVersion" style="opacity:0.7; font-size:12px; margin-left:12px;"></span>
+      </p>
     </header>
 
     <!-- HOW TO USE -->
@@ -99,8 +104,8 @@
         <div style="display:flex; gap:12px; align-items:flex-start;">
           <div style="font-size:22px; line-height:1;">4️⃣</div>
           <div>
-            <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Toggle Reservations &amp; Add-Ons</div>
-            <div style="font-size:12px; color:#555;">Enable <strong>1-Year Reservations</strong> for a ~35% discount on eligible services. Enable any <strong>Optional Add-Ons</strong> (geo-failover, backups, peak throughput) to include them in the total.</div>
+            <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Toggle Reservations, Add-Ons &amp; Support</div>
+            <div style="font-size:12px; color:#555;">Enable <strong>1-Year Reservations</strong> for a ~35% discount on eligible services. Enable any <strong>Optional Add-Ons</strong> (geo-failover, backups, peak throughput). Select an <strong>Azure Support Plan</strong> to include it in the monthly total.</div>
           </div>
         </div>
         <div style="display:flex; gap:12px; align-items:flex-start;">
@@ -119,7 +124,7 @@
         </div>
       </div>
       <div style="margin-top:16px; padding:10px 14px; background:#f0f6ff; border-left:4px solid #0078d4; border-radius:4px; font-size:12px; color:#0052a3;">
-        <strong>All prices are West US estimates</strong> based on the Azure Pricing Calculator (verified via Azure Pricing API, May 2025). Actual costs depend on region, negotiated discounts, and usage. Always validate against the <a href="https://azure.microsoft.com/pricing/calculator/" target="_blank" style="color:#0078d4;">official Azure Pricing Calculator</a> before committing to a budget.
+        <strong>All prices are West US estimates</strong> based on the Azure Pricing Calculator (verified May 2025). Outbound egress bandwidth and the selected Azure Support Plan are included in all totals. Taxes, negotiated enterprise discounts, and region-specific pricing are not included. Always validate against the <a href="https://azure.microsoft.com/pricing/calculator/" target="_blank" style="color:#0078d4;">official Azure Pricing Calculator</a> before committing to a budget.
       </div>
     </div>
 
@@ -226,6 +231,31 @@
         <div class="checkbox-group">
           <input type="checkbox" id="reservationsMode" checked onchange="calculate()">
           <label for="reservationsMode">1-Year Azure Reservations (35% savings)</label>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #0078d4;">Azure Support Plan</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 10px;">
+          <button class="support-btn active" id="sup-basic" onclick="selectSupport(0)">
+            <div style="font-weight:600; margin-bottom:3px;">Basic</div>
+            <div style="font-size:11px; opacity:0.85;">Free</div>
+          </button>
+          <button class="support-btn" id="sup-developer" onclick="selectSupport(1)">
+            <div style="font-weight:600; margin-bottom:3px;">Developer</div>
+            <div style="font-size:11px; opacity:0.85;">$29/mo</div>
+          </button>
+          <button class="support-btn" id="sup-standard" onclick="selectSupport(2)">
+            <div style="font-weight:600; margin-bottom:3px;">Standard</div>
+            <div style="font-size:11px; opacity:0.85;">$100/mo</div>
+          </button>
+          <button class="support-btn" id="sup-profdirect" onclick="selectSupport(3)">
+            <div style="font-weight:600; margin-bottom:3px;">Prof. Direct</div>
+            <div style="font-size:11px; opacity:0.85;">$1,000/mo</div>
+          </button>
+        </div>
+        <div id="supportPlanDesc" style="font-size:12px; color:#555; padding: 8px 12px; background:#f0f6ff; border-left:3px solid #0078d4; border-radius:4px;">
+          Basic: Free — documentation, community forums, Azure Advisor
         </div>
       </div>
     </div>
@@ -528,13 +558,58 @@
       <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
     </div>
 
+    <!-- CHANGELOG -->
+    <div class="section">
+      <div class="section-title collapsed">Changelog</div>
+      <div style="font-size:13px; line-height:1.8;">
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.2.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-20</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Added <strong>Egress / Outbound Bandwidth</strong> as a Networking line item (West US $0.087/GB, first 5 GB free)</li>
+            <li>Added <strong>Azure Support Plan</strong> selector (Basic / Developer / Standard / Professional Direct)</li>
+            <li>Support plan cost reflected in monthly total, annual projection, chart, and CSV export</li>
+            <li>Updated footer and disclaimer to reflect included costs</li>
+            <li>Added version number in header and this Changelog section</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.1.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-16</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Added tiered service configurations (Minimum / Standard / Advanced)</li>
+            <li>Added optional Add-On modules (SQL transaction buffer, geo-failover, backup, Cosmos backup)</li>
+            <li>Added How to Use guide section with step-by-step instructions</li>
+          </ul>
+        </div>
+
+        <div>
+          <strong style="color:#0078d4;">v1.0.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-15</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Initial Azure Cost Calculator published to GitHub Pages</li>
+            <li>4 controller tiers (Starter / Standard / Professional / Enterprise)</li>
+            <li>1-Year Reservation discount toggle (35% off eligible services)</li>
+            <li>Dynamic Cosmos DB and SQL Alarm pricing based on event volume</li>
+            <li>Chart.js cost breakdown by category, CSV export, and print support</li>
+            <li>Accordion expand/collapse on all sections</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
     <div class="footer">
       <p>Azure Cost Calculator | Conservative Configuration + Phase 1 Optimizations</p>
-      <p>Estimates based on West US pricing. Actual costs may vary. See Azure Pricing for current rates.</p>
+      <p>Egress bandwidth and selected support plan included. Taxes and region-specific variations are not included. Validate against the <a href="https://azure.microsoft.com/pricing/calculator/" target="_blank" style="color:#0078d4;">Azure Pricing Calculator</a>.</p>
     </div>
   </div>
 
   <script>
+    const APP_VERSION = '1.2.0';
+
     // Data
     const TIERS = [
       { name: 'Starter', max: 50 },
@@ -600,6 +675,9 @@
         consCosts: [5, 5,  10, 15],
         advCosts:  [10, 15, 25, 35],
         skus: ['Basic peering', 'Standard peering', 'Premium peering'],
+        eligible: false },
+      { cat: 'Networking', name: 'Egress / Outbound Bandwidth', dynamic: 'egress',
+        skus: ['~15–80 GB/mo', '~25–700 GB/mo', '~40–3,200 GB/mo'],
         eligible: false },
       // Storage
       { cat: 'Storage', name: 'Azure Blob Storage',
@@ -697,6 +775,26 @@
 
     let chart = null;
     let selectedConfig = 1; // 0=Minimum, 1=Standard, 2=Advanced
+    let selectedSupportPlan = 0; // 0=Basic, 1=Developer, 2=Standard, 3=ProfDirect
+
+    const SUPPORT_PLANS = [
+      { name: 'Basic',               cost: 0,    desc: 'Free — documentation, community forums, Azure Advisor' },
+      { name: 'Developer',           cost: 29,   desc: '$29/mo — business-hours email support, <8h response (severity C)' },
+      { name: 'Standard',            cost: 100,  desc: '$100/mo — 24×7 phone/email, <2h severity B, <1h severity A' },
+      { name: 'Professional Direct', cost: 1000, desc: '$1,000/mo — dedicated account manager, <1h severity A, proactive advisory' },
+    ];
+
+    // Estimated outbound GB/month [configIdx 0-2][tierIdx 0-3]
+    const EGRESS_GB = [
+      [15,   80,   400,  1200], // Minimum
+      [25,   150,  700,  2000], // Standard
+      [40,   250,  1100, 3200], // Advanced
+    ];
+
+    function calculateEgressCost(tierIdx, configIdx) {
+      const billableGb = Math.max(0, EGRESS_GB[configIdx][tierIdx] - 5); // first 5 GB free
+      return Math.round(billableGb * 0.087); // $0.087/GB West US
+    }
 
     const CONFIGS = [
       { name: 'Minimum',  subtitle: 'Cost-optimized baseline',  color: '#107c10' },
@@ -855,6 +953,16 @@
       calculate();
     }
 
+    function selectSupport(idx) {
+      selectedSupportPlan = idx;
+      ['sup-basic', 'sup-developer', 'sup-standard', 'sup-profdirect'].forEach((id, i) =>
+        document.getElementById(id).classList.toggle('active', i === idx));
+      const p = SUPPORT_PLANS[idx];
+      document.getElementById('supportPlanDesc').textContent =
+        p.name + ': ' + p.desc;
+      calculate();
+    }
+
     function getAddonCost(addon, tierIdx) {
       const multipliers = [0.5, 1.0, 2.0]; // Minimum / Standard / Advanced
       return Math.round(addon.baseCosts[tierIdx] * multipliers[selectedConfig]);
@@ -961,6 +1069,8 @@
           if (alDay > 500000 && tierIdx < 3 && selectedConfig < 2) {
             cost = alarmBaseCosts[selectedConfig][Math.min(tierIdx + 1, 3)];
           }
+        } else if (s.dynamic === 'egress') {
+          cost = calculateEgressCost(tierIdx, selectedConfig);
         } else {
           const costMatrix = [s.minCosts, s.consCosts, s.advCosts];
           cost = costMatrix[selectedConfig][tierIdx];
@@ -1000,8 +1110,9 @@
         document.getElementById('addonsTotal').textContent = formatCurrency(addonMonthly) + '/mo';
       }
 
-      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0) + addonMonthly;
-      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly;
+      const supportCost = SUPPORT_PLANS[selectedSupportPlan].cost;
+      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0) + addonMonthly + supportCost;
+      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly + supportCost;
       const savings = baseOriginal - baseMonthly;
       const savingsPercent = baseOriginal > 0 ? Math.round(savings / baseOriginal * 100) : 0;
 
@@ -1036,6 +1147,9 @@
         if (!cats[r.cat]) cats[r.cat] = 0;
         cats[r.cat] += r.cost;
       });
+      if (supportCost > 0) {
+        cats['Support'] = supportCost;
+      }
 
       // Merge add-on rows into their correct category position (no duplicate headers)
       const catOrder = [];
@@ -1056,10 +1170,17 @@
         }
         const badge = r.reserved ? ' <span class="badge badge-reserved">reserved</span>' : '';
         const addonBadge = r.baseCosts ? ' <span class="badge" style="background:#fff3e0;color:#b76c00;">add-on</span>' : '';
-        const skuLabel = r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name;
+        const skuLabel = r.dynamic === 'egress'
+          ? `~${EGRESS_GB[selectedConfig][tierIdx]} GB/mo`
+          : (r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name);
         const configBadge = `<span style="font-size:11px; color:#666;">${skuLabel}</span>`;
         html += `<tr><td>${r.name}${badge}${addonBadge}</td><td>${configBadge}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
       });
+      if (supportCost > 0) {
+        const plan = SUPPORT_PLANS[selectedSupportPlan];
+        html += `<tr class="cat-row"><td><strong>Support</strong></td><td></td><td class="text-right"><strong>${formatCurrency(supportCost)}</strong></td><td class="text-right"><strong>${formatCurrency(supportCost * 12)}</strong></td></tr>`;
+        html += `<tr><td>${plan.name} Support Plan</td><td><span style="font-size:11px; color:#666;">Azure Support</span></td><td class="text-right">${formatCurrency(supportCost)}</td><td class="text-right">${formatCurrency(supportCost * 12)}</td></tr>`;
+      }
       document.getElementById('serviceTable').innerHTML = html;
 
       // Chart
@@ -1072,7 +1193,8 @@
         'Storage': '#ffc900',
         'Security & Identity': '#d83b01',
         'Monitoring': '#038387',
-        'External': '#e81123'
+        'External': '#e81123',
+        'Support': '#ca5010'
       };
       const catCols = catLabels.map(c => catColors[c] || '#ccc');
 
@@ -1144,6 +1266,7 @@
       csv += 'Controllers,' + controllers + '\n';
       csv += 'Controller Tier,' + TIERS[tierIdx].name + '\n';
       csv += 'Service Configuration,' + CONFIGS[selectedConfig].name + '\n';
+      csv += 'Azure Support Plan,' + SUPPORT_PLANS[selectedSupportPlan].name + ' ($' + SUPPORT_PLANS[selectedSupportPlan].cost + '/mo)\n';
       csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
       csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
       csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n\n';
@@ -1175,6 +1298,7 @@
       document.getElementById('alarmEvents').value = '2';
       document.getElementById('reservationsMode').checked = true;
       selectConfig(1);
+      selectSupport(0);
     }
 
     // Event listeners
@@ -1192,8 +1316,9 @@
       document.querySelectorAll('.section').forEach(section => {
         const title = section.querySelector(':scope > .section-title');
         if (!title) return;
+        const startCollapsed = title.classList.contains('collapsed');
         const content = document.createElement('div');
-        content.className = 'section-content';
+        content.className = 'section-content' + (startCollapsed ? ' collapsed' : '');
         Array.from(section.children).forEach(child => {
           if (child !== title) content.appendChild(child);
         });
@@ -1205,6 +1330,8 @@
       });
     }
     initAccordions();
+
+    document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
 </script>
 </body>
 </html>
