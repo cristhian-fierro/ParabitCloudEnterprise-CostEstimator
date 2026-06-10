@@ -738,7 +738,7 @@
       {
         id: 'addon-sql-txbuffer',
         name: 'SQL DB – Transaction Buffer / Peak Throughput',
-        desc: 'Reserves extra eDTU capacity in the elastic pool to absorb transaction bursts without throttling.',
+        desc: 'Prevents system slowdowns and credential failures during peak periods (shift changes, mass access events) by reserving extra database capacity to absorb transaction bursts without throttling.',
         detail: 'Upgrades elastic pool: Basic 50→100 / Standard 100→200→400 eDTU. Priced per Azure elastic pool DTU tiers.',
         cat: 'Database',
         baseCosts: [50, 100, 181, 362], // Standard config, per controller tier
@@ -747,7 +747,7 @@
       {
         id: 'addon-sql-geo',
         name: 'SQL DB – HA / Geo-Failover (Active Geo-Replication)',
-        desc: 'Adds a readable secondary SQL replica in a paired Azure region for disaster recovery.',
+        desc: 'Maintains near-continuous uptime by failing over to a secondary Azure region in under 30 seconds. Critical for deployments with SLA commitments or compliance requirements (government, healthcare, financial facilities) where downtime has legal or safety consequences.',
         detail: 'Billed at same DTU tier rate as primary in secondary region. Near-zero RPO, <30s RTO.',
         cat: 'Database',
         baseCosts: [73, 145, 218, 435], // secondary replica at same S-tier pricing
@@ -756,7 +756,7 @@
       {
         id: 'addon-sql-backup',
         name: 'SQL DB – Backup Plan (PITR + LTR)',
-        desc: 'Extends backup retention to 35-day PITR plus long-term retention (weekly, monthly, yearly).',
+        desc: 'Extends recovery options beyond the base 7-day window to 35 days plus weekly, monthly, and yearly snapshots — enabling forensic recovery after security incidents and satisfying data retention mandates under HIPAA, SOC 2, ISO 27001, and similar frameworks.',
         detail: 'LTR stored as RA-GRS blobs at $0.026/GB/mo. 7-day PITR is included in base price.',
         cat: 'Storage',
         baseCosts: [10, 25, 50, 100],
@@ -765,7 +765,7 @@
       {
         id: 'addon-cosmos-backup',
         name: 'Cosmos DB – Continuous Backup & Multi-Region Reads',
-        desc: 'Enables continuous backup mode and adds one geo-redundant read replica region.',
+        desc: 'Protects audit trails and event history with point-in-time recovery (not just hourly snapshots), and improves dashboard and reporting performance for geographically distributed deployments through a geo-redundant read replica.',
         detail: 'Continuous backup: $0.20/GB/mo of stored backup data. Multi-region read replica billed at primary throughput rate.',
         cat: 'Database',
         baseCosts: [25, 75, 150, 300],
