@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a **single-file static HTML application** — the entire app lives in `index.html`. There is no build system, no package manager, and no server-side code. It is deployed via GitHub Pages.
+This is a **single-file static HTML application** — the entire app lives in `index.html`. There is no build system, no package manager, and no server-side code. It is deployed via GitHub Pages at:
+
+**https://cristhian-fierro.github.io/ParabitCloudEnterprise-CostEstimator/**
 
 The only external dependency is Chart.js, loaded from a CDN:
 ```html
@@ -29,24 +31,65 @@ No build step, no install, no lint — just open the file.
 
 Everything is in `index.html` in three sections:
 
-1. **CSS** (`<style>` block, lines ~8–65) — inline styles; no external stylesheet. Key layout classes: `.section`, `.section-title`, `.metrics`, `.metric-card`, `.config-btn`.
+1. **CSS** (`<style>` block, lines ~8–75) — inline styles; no external stylesheet. Key layout classes: `.section`, `.section-title`, `.metrics`, `.metric-card`, `.config-btn`, `.retention-btn`, `.failover-btn`, `.dr-btn`.
 
-2. **HTML** (lines ~67–535) — static markup for the header, controls, comparison tables, chart canvas, and action buttons. The service breakdown table (`#serviceTable`) and add-ons container (`#addonsContainer`) are populated entirely by JavaScript.
+2. **HTML** (lines ~76–860) — static markup for the header (with live cost banner), controls, comparison tables, chart canvas, glossary, and action buttons. The service breakdown table (`#serviceTable`) and add-ons container (`#addonsContainer`) are populated entirely by JavaScript. Key input IDs: `controllers`, `hbInterval`, `credEvents`, `alarmEvents`, `taxRate`. Key button groups: `fo-none/fo-critical/fo-all` (failover), `dr-none/dr-standard/dr-advanced` (DR), `ret-3m/ret-6m/ret-1y/ret-3y/ret-10y` (retention).
 
-3. **JavaScript** (`<script>` block, lines ~537–1208) — all logic. Key data structures and functions:
-   - `TIERS` — array of 4 controller tiers (Starter/Standard/Professional/Enterprise), each with a `max` controller count.
-   - `SERVICES` — array of Azure service line items. Each service has `minCosts`, `consCosts`, `advCosts` arrays (one cost per tier index), a `skus` array (one label per config), and an `eligible` flag for reservation discounts. Services with `dynamic: 'cosmos'` or `dynamic: 'alarm'` are computed rather than looked up.
-   - `ADD_ONS` — optional add-on services with `baseCosts` per tier; scaled by a `[0.5, 1.0, 2.0]` multiplier for the selected config.
-   - `CONFIGS` — the three service configurations (Minimum/Standard/Advanced), stored at index 0/1/2 in `selectedConfig`.
-   - `calculate()` — the main recalculation function; reads all inputs, recomputes every cost, updates the DOM table and Chart.js instance.
-   - `calculateCosmosCost()` — dynamic Cosmos DB cost based on heartbeat interval, credential events, alarm events, controllers, and selected config.
-   - `selectTier(tierIdx, tierName)` — updates the controllers slider and tier detail panel; calls `calculate()`.
-   - `selectConfig(idx)` — updates `selectedConfig`, refreshes config panel, calls `calculate()`.
-   - `initAddOns()` — renders add-on checkboxes from `ADD_ONS` into `#addonsContainer`.
-   - `initAccordions()` — wraps each `.section`'s non-title children in a `.section-content` div and wires up collapse/expand toggle.
+3. **JavaScript** (`<script>` block, lines ~860+) — all logic. Key data structures and functions:
+
+### Global State
+- `selectedConfig` — 0=Minimum, 1=Standard, 2=Advanced
+- `selectedRetentionMonths` — 3, 6, 12, 36, or 120 (default: 12)
+- `selectedFailover` — 0=None, 1=Critical Services, 2=All Services
+- `selectedDR` — 0=None, 1=Standard DR, 2=Advanced DR
+
+### Constants
+- `TIERS` — 4 controller tiers (Starter/Standard/Professional/Enterprise), each with a `max` controller count.
+- `SERVICES` — Azure service line items. Each has `minCosts`, `consCosts`, `advCosts` arrays (one cost per tier index 0–3), a `skus` array (one label per config), and an `eligible` flag for reservation discounts. Services with `dynamic: 'cosmos'`, `dynamic: 'alarm'`, or `dynamic: 'egress'` are computed rather than looked up.
+- `ADD_ONS` — 3 optional add-ons (SQL transaction buffer, SQL backup PITR+LTR, Cosmos continuous backup) with `baseCosts` per tier, scaled by `multipliers[selectedConfig]`.
+- `CONFIGS` — the three service configurations (Minimum/Standard/Advanced).
+- `multipliers` — `[0.5, 1.0, 2.0]` — module-level constant used by `getAddonCost()`, failover cost, and DR cost calculations.
+- `EVENT_BYTES` — `{ credential: 1054, alarm: 342, heartbeat: 342 }` — per-event byte sizes from cloud data analysis.
+- `SECURITY_OVERHEAD` — `0.50` — 50% added on top of raw event data volume for encryption/audit metadata.
+- `EGRESS_GB` — estimated outbound GB/month per config and tier.
+- `FAILOVER_OPTIONS` — 3 failover scopes, each with `baseCosts[tierIdx]` and a `lineItems` array of sub-components.
+- `DR_OPTIONS` — 3 DR tiers, same structure as `FAILOVER_OPTIONS`.
+
+### Key Functions
+- `calculate()` — main recalculation; reads all inputs, recomputes every cost, updates DOM table, metric cards, header banner, and Chart.js instance.
+- `calculateCosmosCost()` — dynamic Cosmos DB cost based on heartbeat interval, credential events, alarm events, controllers, and selected config.
+- `calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval)` — auto-calculates data volume from event byte sizes + 50% security overhead; returns `{ credGb, alarmGb, hbGb, rawGb, totalGb }`.
+- `calculateRetentionCost(ingestGb, retentionMonths)` — returns blob and Log Analytics costs broken down by Hot/Cool/Archive tiers.
+- `getAddonCost(addon, tierIdx)` — returns `addon.baseCosts[tierIdx] * multipliers[selectedConfig]`.
+- `selectConfig(idx)` — updates `selectedConfig`, refreshes config panel, calls `calculate()`.
+- `selectRetention(months)` — updates `selectedRetentionMonths`, toggles button active state, calls `calculate()`.
+- `selectFailover(idx)` — updates `selectedFailover`, toggles button active state, updates description panel, calls `calculate()`.
+- `selectDR(idx)` — updates `selectedDR`, toggles button active state, updates description panel, calls `calculate()`.
+- `initAddOns()` — renders add-on checkboxes from `ADD_ONS` into `#addonsContainer`.
+- `initAccordions()` — wraps each `.section`'s non-title children in a `.section-content` div and wires up collapse/expand toggle.
 
 ## Pricing Data
 
-All Azure prices are West US estimates verified against the Azure Pricing API (May 2025). When updating prices, update the relevant arrays in `SERVICES` and `ADD_ONS`, and update the comparison tables in the HTML static markup to stay in sync.
+All Azure prices are West US estimates re-verified against the Azure Retail Prices API (June 2026). Confirmed current prices:
 
-The reservation discount is a flat 35% off (`cost * 0.65`) applied only to services with `eligible: true`.
+| Service | Verified Price |
+|---|---|
+| App Gateway WAF_v2 | $341.64/mo base → code uses $342 |
+| Blob Storage Hot LRS | $0.0208/GB/mo |
+| App Service S2 | $146/mo (Windows) |
+| Cosmos DB Serverless | $0.279/M RU |
+| Cosmos DB Provisioned | $0.008/hr per 100 RU/s |
+| Cosmos DB Multi-region write | $0.016/hr per 100 RU/s |
+| AKS Uptime SLA | $0.10/hr → $73/mo |
+
+When updating prices, update the relevant arrays in `SERVICES`, `ADD_ONS`, `FAILOVER_OPTIONS`, and `DR_OPTIONS`, and update the static comparison tables in the HTML markup to stay in sync.
+
+The reservation discount is a flat 35% off (`cost * 0.65`) applied only to services with `eligible: true`. Failover and DR costs are not reservation-eligible.
+
+## Important Constraints
+
+- **No build step** — edits to `index.html` are live immediately. Test by opening the file in a browser.
+- **Single file** — do not split into multiple files. All CSS, HTML, and JS stays in `index.html`.
+- **Chart exclusion** — Geo-Failover and DR costs are appended to the breakdown table *after* the chart update, so they are intentionally excluded from the Cost by Category chart.
+- **Accordion timing** — `initAccordions()` runs last, after all `select*()` calls in the initial render block. Do not move it earlier.
+- **`annualCost` DOM element** — must exist in the HTML (currently an Annual Subtotal metric card in the Summary section). If removed, `calculate()` will throw a TypeError and the chart will not render.
