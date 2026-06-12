@@ -333,6 +333,14 @@
         <button class="retention-btn"        id="ret-10y" onclick="selectRetention(120)"><div style="font-weight:600;">10 Years</div><div style="font-size:11px;opacity:0.85;">HIPAA &middot; Long-term</div></button>
       </div>
 
+      <div style="margin-top:14px; margin-bottom:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <label style="font-weight:600; color:#7030a0; font-size:13px; white-space:nowrap;">Security Overhead (%)</label>
+        <input type="number" id="securityOverhead" min="0" max="200" step="1" value="50"
+          style="width:80px; padding:7px 10px; border:1px solid #d3bff7; border-radius:4px; font-size:14px; color:#4b2d8a; text-align:center;"
+          oninput="calculate()">
+        <span style="font-size:12px; color:#888;">Additional storage allocated for encryption metadata, audit headers, and security tokens. Default: 50%.</span>
+      </div>
+
       <div id="retentionInfo" style="padding:12px 16px; background:#f5f0ff; border-left:4px solid #7030a0; border-radius:4px; font-size:12px; color:#4b2d8a;">
         Loading…
       </div>
@@ -1319,21 +1327,23 @@
       calculate();
     }
 
-    function calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval) {
+    function calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval, overheadPct) {
       const hoursPerMonth = 730;
       const heartbeatsPerHour = 3600 / Math.max(1, hbInterval);
       const GB = 1024 * 1024 * 1024;
+      const overhead = (overheadPct != null ? overheadPct : SECURITY_OVERHEAD * 100) / 100;
       const credBytes  = controllers * credEvents        * EVENT_BYTES.credential * hoursPerMonth;
       const alarmBytes = controllers * alarmEvents       * EVENT_BYTES.alarm       * hoursPerMonth;
       const hbBytes    = controllers * heartbeatsPerHour * EVENT_BYTES.heartbeat   * hoursPerMonth;
       const rawBytes   = credBytes + alarmBytes + hbBytes;
-      const totalBytes = rawBytes * (1 + SECURITY_OVERHEAD);
+      const totalBytes = rawBytes * (1 + overhead);
       return {
-        credGb:  credBytes  / GB,
-        alarmGb: alarmBytes / GB,
-        hbGb:    hbBytes    / GB,
-        rawGb:   rawBytes   / GB,
-        totalGb: totalBytes / GB
+        credGb:    credBytes  / GB,
+        alarmGb:   alarmBytes / GB,
+        hbGb:      hbBytes    / GB,
+        rawGb:     rawBytes   / GB,
+        totalGb:   totalBytes / GB,
+        overheadPct: overhead * 100
       };
     }
 
@@ -1506,8 +1516,9 @@
         document.getElementById('addonsTotal').textContent = formatCurrency(addonMonthly) + '/mo';
       }
 
-      // Data retention (auto-calculated from event byte sizes + 50% security overhead)
-      const dataVol = calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval);
+      // Data retention (auto-calculated from event byte sizes + configurable security overhead)
+      const securityOverheadPct = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
+      const dataVol = calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval, securityOverheadPct);
       const ret = calculateRetentionCost(dataVol.totalGb, selectedRetentionMonths);
       const retPeriodLabel = {3:'3 Months', 6:'6 Months', 12:'1 Year', 36:'3 Years', 120:'10 Years'}[selectedRetentionMonths];
       const complianceNote = {
@@ -1519,7 +1530,7 @@
       }[selectedRetentionMonths];
       document.getElementById('retentionInfo').innerHTML =
         `<strong>${retPeriodLabel} Retention &middot; Auto-calculated: ${dataVol.totalGb.toFixed(2)} GB/mo</strong><br>` +
-        `<span style="opacity:0.85;">Credentials ${dataVol.credGb.toFixed(2)} GB + Alarms ${dataVol.alarmGb.toFixed(2)} GB + Heartbeats ${dataVol.hbGb.toFixed(2)} GB = ${dataVol.rawGb.toFixed(2)} GB raw + 50% security overhead</span><br><br>` +
+        `<span style="opacity:0.85;">Credentials ${dataVol.credGb.toFixed(2)} GB + Alarms ${dataVol.alarmGb.toFixed(2)} GB + Heartbeats ${dataVol.hbGb.toFixed(2)} GB = ${dataVol.rawGb.toFixed(2)} GB raw + ${dataVol.overheadPct.toFixed(0)}% security overhead</span><br><br>` +
         `<strong>Blob Storage:</strong> ${Math.round(ret.hotGb)} GB Hot + ${Math.round(ret.coolGb)} GB Cool + ${Math.round(ret.archiveGb)} GB Archive &rarr; <strong>${formatCurrency(ret.blobCost)}/mo</strong><br>` +
         `<strong>Log Analytics:</strong> ${dataVol.totalGb.toFixed(2)} GB/mo log data extended retention &rarr; <strong>${formatCurrency(ret.laCost)}/mo</strong><br><br>` +
         `<strong>Total retention cost: ${formatCurrency(ret.total)}/mo &middot; ${formatCurrency(ret.total * 12)}/yr</strong><br>` +
@@ -1725,12 +1736,15 @@
       csv += 'Failover Scope,' + FAILOVER_OPTIONS[selectedFailover].name + '\n';
       csv += 'DR Tier,' + DR_OPTIONS[selectedDR].name + '\n';
       csv += 'Retention Period,' + {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths] + '\n';
+      const csvOverhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
       const csvDataVol = calculateMonthlyDataGb(
         parseInt(controllers),
         parseInt(document.getElementById('credEvents').value),
         parseInt(document.getElementById('alarmEvents').value),
-        parseInt(document.getElementById('hbInterval').value)
+        parseInt(document.getElementById('hbInterval').value),
+        csvOverhead
       );
+      csv += 'Security Overhead,' + csvOverhead + '%\n';
       csv += 'Data Ingested per Month (auto-calculated),' + csvDataVol.totalGb.toFixed(2) + ' GB\n\n';
       csv += 'Service Costs\n';
       csv += 'Service,Configuration,Monthly,Annual\n';
@@ -1762,6 +1776,7 @@
       document.getElementById('alarmEvents').value = '100';
       document.getElementById('reservationsMode').checked = true;
       document.getElementById('taxRate').value = '8.63';
+      document.getElementById('securityOverhead').value = '50';
       selectConfig(1);
       selectFailover(0);
       selectDR(0);
@@ -1773,6 +1788,7 @@
     document.getElementById('hbInterval').addEventListener('input', calculate);
     document.getElementById('credEvents').addEventListener('input', calculate);
     document.getElementById('alarmEvents').addEventListener('input', calculate);
+    document.getElementById('securityOverhead').addEventListener('input', calculate);
 
     // Initial render
     initAddOns();
