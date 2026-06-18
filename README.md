@@ -137,6 +137,7 @@ flowchart TD
 
 | Version | Date | Summary |
 |---|---|---|
+| v1.5.0 | 2026-06-18 | Live price refresh (🔄 Refresh from Azure button, CORS proxy via Azure Functions, progress modal) |
 | v1.4.0 | 2026-06-12 | Chart bug fix, header cost banner, Annual Subtotal card, price re-verification, Glossary |
 | v1.3.0 | 2026-06-12 | Failover selector, DR tier, Data Retention rework, tax support |
 | v1.2.0 | 2026-05-20 | Egress bandwidth line item, version number, Changelog section |
