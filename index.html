@@ -116,6 +116,15 @@
       </div>
     </header>
 
+    <!-- ACTIONS -->
+    <div class="section" style="text-align: center;">
+      <button onclick="refreshPricesFromAzure()">🔄 Refresh from Azure</button>
+      <button onclick="exportToExcel()">📥 Export to Excel</button>
+      <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
+      <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
+      <span id="livePricesBadge" class="live-badge"></span>
+    </div>
+
     <!-- HOW TO USE -->
     <div class="section">
       <div class="section-title">How to Use</div>
@@ -653,15 +662,6 @@
       <div class="tip-box" id="tipBox">
         Configure the parameters above to calculate your optimized Azure costs.
       </div>
-    </div>
-
-    <!-- ACTIONS -->
-    <div class="section" style="text-align: center;">
-      <button onclick="refreshPricesFromAzure()">🔄 Refresh from Azure</button>
-      <button onclick="exportToExcel()">📥 Export to Excel</button>
-      <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
-      <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
-      <span id="livePricesBadge" class="live-badge"></span>
     </div>
 
     <!-- GLOSSARY -->
