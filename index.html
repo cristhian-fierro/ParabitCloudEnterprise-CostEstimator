@@ -1038,6 +1038,7 @@
     let selectedRetentionMonths = 12; // default: 1 year
     let selectedFailover = 0;     // 0=None, 1=Critical, 2=All
     let selectedDR = 0;           // 0=None, 1=Standard, 2=Advanced
+    let lastBaseOriginal = 0;     // monthly list price (pre-reservation) from last calculate(); used by Excel export
 
     // Estimated outbound GB/month [configIdx 0-2][tierIdx 0-3]
     const EGRESS_GB = [
@@ -1550,6 +1551,7 @@
       const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly + ret.total + failoverCost + drCost;
       const savings = baseOriginal - baseMonthly;
       const savingsPercent = baseOriginal > 0 ? Math.round(savings / baseOriginal * 100) : 0;
+      lastBaseOriginal = baseOriginal;   // expose for the Excel export's reservation formulas
 
       const taxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
       const taxAmount = Math.round(baseMonthly * taxRate / 100);
@@ -1728,16 +1730,19 @@
     // Escape text for safe insertion into the export HTML.
     function xlsEscape(text) {
       return String(text == null ? '' : text)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     // Build a currency <td> that Excel treats as a real number (summable) while
-    // still displaying "$1,234". Falls back to plain text for non-currency values.
-    function xlsMoneyCell(text, extraStyle) {
+    // still displaying "$1,234". An optional Excel formula is attached via x:fmla;
+    // the computed number is kept as the cached value so it still shows if a viewer
+    // ignores formulas. Falls back to plain text for non-currency values.
+    function xlsMoneyCell(text, extraStyle, formula) {
       const n = moneyToNum(text);
+      const fmla = formula ? ' x:fmla="' + xlsEscape(formula) + '"' : '';
       const style = "mso-number-format:'\\0024#,##0';text-align:right;" + (extraStyle || '');
-      if (isNaN(n)) return '<td style="text-align:right;' + (extraStyle || '') + '">' + xlsEscape(text) + '</td>';
-      return '<td style="' + style + '">' + n + '</td>';
+      if (isNaN(n)) return '<td style="text-align:right;' + (extraStyle || '') + '"' + fmla + '>' + xlsEscape(text) + '</td>';
+      return '<td style="' + style + '"' + fmla + '>' + n + '</td>';
     }
 
     function exportToExcel() {
@@ -1779,58 +1784,158 @@
                  '<style>td,th{border:1px solid #cccccc;padding:4px 8px;font-family:Calibri,Arial,sans-serif;font-size:11pt;}' +
                  'table{border-collapse:collapse;}</style></head><body>';
 
+      // Track the current Excel row (1-based) so derived cells can reference others by address.
+      let rowNum = 0;
+
       html += '<table>';
       // Title
-      html += '<tr><td colspan="4" style="font-size:16pt;font-weight:bold;border:none;">Azure Cost Estimate</td></tr>';
-      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
+      html += '<tr><td colspan="4" style="font-size:16pt;font-weight:bold;border:none;">Azure Cost Estimate</td></tr>'; rowNum++;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
 
       // Configuration block
-      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">Configuration</td></tr>';
+      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">Configuration</td></tr>'; rowNum++;
       configRows.forEach(r => {
-        html += '<tr><td style="font-weight:bold;">' + xlsEscape(r[0]) + '</td><td>' + xlsEscape(r[1]) + '</td></tr>';
+        html += '<tr><td style="font-weight:bold;">' + xlsEscape(r[0]) + '</td><td>' + xlsEscape(r[1]) + '</td></tr>'; rowNum++;
       });
-      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
 
-      // Service Costs table
+      // Service Costs table (col A=Service, B=Configuration, C=Monthly, D=Annual)
       html += '<tr>' +
               '<td style="' + HEADER_FILL + '">Service</td>' +
               '<td style="' + HEADER_FILL + '">Configuration</td>' +
               '<td style="' + HEADER_FILL + 'text-align:right;">Monthly</td>' +
-              '<td style="' + HEADER_FILL + 'text-align:right;">Annual</td></tr>';
+              '<td style="' + HEADER_FILL + 'text-align:right;">Annual</td></tr>'; rowNum++;
+
+      // Snapshot the rendered rows first so we can resolve category SUM ranges by address.
+      const svc = [];
       document.querySelectorAll('#serviceTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
         if (cells.length < 4) return;
-        const isCat = row.classList.contains('cat-row');
-        const rowStyle = isCat ? CAT_FILL : '';
-        html += '<tr>' +
-                '<td style="' + rowStyle + '">' + xlsEscape(cells[0].textContent.trim()) + '</td>' +
-                '<td style="' + rowStyle + '">' + xlsEscape(cells[1].textContent.trim()) + '</td>' +
-                xlsMoneyCell(cells[2].textContent.trim(), rowStyle) +
-                xlsMoneyCell(cells[3].textContent.trim(), rowStyle) +
-                '</tr>';
+        const name = cells[0].textContent.trim();
+        // The page table appends its own Tax / Estimated Tax / Total (w/ Tax) rows.
+        // The export builds a dedicated Subtotal/Tax/Total summary block below, so skip
+        // them here — otherwise they duplicate and break the category SUM formulas.
+        if (name === 'Tax' || /^Estimated Tax/.test(name) || /^Total \(w\/ Tax\)/.test(name)) return;
+        svc.push({
+          isCat:   row.classList.contains('cat-row'),
+          name:    name,
+          config:  cells[1].textContent.trim(),
+          monthly: cells[2].textContent.trim(),
+          annual:  cells[3].textContent.trim()
+        });
       });
-      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
 
-      // Summary block
-      const taxRateLabel = document.getElementById('taxRateDisplay').textContent;
-      const summaryRows = [
-        ['Subtotal (before tax)', document.getElementById('monthlyCost').textContent],
-        ['Estimated Tax (' + taxRateLabel + ')', document.getElementById('taxAmount').textContent],
-        ['Total (with tax)', document.getElementById('monthlyTotal').textContent],
-        ['Annual Total (with tax)', document.getElementById('annualTotal').textContent]
-      ];
-      summaryRows.forEach((r, i) => {
-        const emphasize = (i === summaryRows.length - 1) ? 'font-weight:bold;' : '';
-        html += '<tr><td colspan="3" style="font-weight:bold;' + emphasize + '">' + xlsEscape(r[0]) + '</td>' +
-                xlsMoneyCell(r[1], emphasize) + '</tr>';
+      const svcStart = rowNum + 1;        // Excel row of the first service data row
+      const catRowNums = [];              // Excel rows of category subtotal rows
+      svc.forEach((r, i) => {
+        const excelRow = svcStart + i;
+        // Annual = Monthly * 12 for every row.
+        const annualFmla = '=C' + excelRow + '*12';
+        if (r.isCat) {
+          catRowNums.push(excelRow);
+          // Category Monthly = SUM of its member item rows (the run until the next category).
+          let last = i;
+          for (let j = i + 1; j < svc.length && !svc[j].isCat; j++) last = j;
+          const monthlyFmla = last > i
+            ? '=SUM(C' + (svcStart + i + 1) + ':C' + (svcStart + last) + ')'
+            : null;
+          html += '<tr>' +
+                  '<td style="' + CAT_FILL + '">' + xlsEscape(r.name) + '</td>' +
+                  '<td style="' + CAT_FILL + '"></td>' +
+                  xlsMoneyCell(r.monthly, CAT_FILL, monthlyFmla) +
+                  xlsMoneyCell(r.annual, CAT_FILL, annualFmla) +
+                  '</tr>';
+        } else {
+          html += '<tr>' +
+                  '<td>' + xlsEscape(r.name) + '</td>' +
+                  '<td>' + xlsEscape(r.config) + '</td>' +
+                  xlsMoneyCell(r.monthly, '') +
+                  xlsMoneyCell(r.annual, '', annualFmla) +
+                  '</tr>';
+        }
       });
+      rowNum += svc.length;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
+
+      // Summary block (label spans A–C; value lives in column D)
+      const taxRateLabel = document.getElementById('taxRateDisplay').textContent;
+      // Subtotal = SUM of the category subtotals.
+      const subtotalFmla = catRowNums.length ? '=SUM(' + catRowNums.map(n => 'C' + n).join(',') + ')' : null;
+
+      const subtotalRow = rowNum + 1;
+      html += '<tr><td colspan="2" style="font-weight:bold;">Subtotal (before tax)</td>' +
+              xlsMoneyCell(document.getElementById('monthlyCost').textContent, '', subtotalFmla) + '</tr>'; rowNum++;
+
+      const taxRow = rowNum + 1;
+      const taxFmla = '=ROUND(C' + subtotalRow + '*' + taxRate + '/100,0)';
+      html += '<tr><td colspan="2" style="font-weight:bold;">Estimated Tax (' + xlsEscape(taxRateLabel) + ')</td>' +
+              xlsMoneyCell(document.getElementById('taxAmount').textContent, '', taxFmla) + '</tr>'; rowNum++;
+
+      const totalRow = rowNum + 1;
+      const totalFmla = '=C' + subtotalRow + '+C' + taxRow;
+      html += '<tr><td colspan="2" style="font-weight:bold;">Total (with tax) Monthly</td>' +
+              xlsMoneyCell(document.getElementById('monthlyTotal').textContent, '', totalFmla) + '</tr>'; rowNum++;
+
+      const annualTotalFmla = '=C' + totalRow + '*12';
+      html += '<tr><td colspan="2" style="font-weight:bold;">Annual Total (with tax)</td>' +
+              xlsMoneyCell(document.getElementById('annualTotal').textContent, 'font-weight:bold;', annualTotalFmla) + '</tr>'; rowNum++;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
+
+      // 1-Year Azure Reservation savings block (label in col A; value in col B)
+      const useReservations = document.getElementById('reservationsMode').checked;
+      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">1-Year Azure Reservation</td></tr>'; rowNum++;
+      html += '<tr><td style="font-weight:bold;">Reservations Enabled</td><td>' + (useReservations ? 'Yes' : 'No') + '</td></tr>'; rowNum++;
+      if (useReservations) {
+        // The List Price (pre-reservation monthly cost) is the single static anchor — it's the
+        // raw Azure list price total and isn't derivable from the (post-discount) service rows.
+        // Every other field below is a live formula built from it, the Subtotal, and the rate.
+        const listRow = rowNum + 1;
+        const listNote = 'Sum of every service at full list price (before the 35% reservation discount) ' +
+                         '+ add-ons + retention + failover + DR. Computed by the app; not derivable from the discounted rows above.';
+        html += '<tr><td style="font-weight:bold;">List Price (Monthly, pre-reservation)</td>' +
+                xlsMoneyCell(Math.round(lastBaseOriginal)) +
+                '<td style="font-style:italic;color:#666666;font-size:9pt;">' + xlsEscape(listNote) + '</td></tr>'; rowNum++;
+        // Surface the 35% reservation discount rate as its own (editable) cell, stored as
+        // the decimal 0.35 and shown as "35%", so the Upfront formula references it directly.
+        const rateRow = rowNum + 1;
+        html += '<tr><td style="font-weight:bold;">Reservation Discount Rate</td>' +
+                '<td style="text-align:right;mso-number-format:\'0%\';">0.35</td></tr>'; rowNum++;
+        // Monthly Savings = List Price - Subtotal (discounted).
+        const savingsRow = rowNum + 1;
+        const savingsFmla = '=B' + listRow + '-C' + subtotalRow;
+        html += '<tr><td style="font-weight:bold;">Monthly Savings</td>' +
+                xlsMoneyCell(document.getElementById('monthlySavings').textContent, '', savingsFmla) + '</tr>'; rowNum++;
+        // Savings % = Savings / List Price.
+        const pctFmla = '=ROUND(B' + savingsRow + '/B' + listRow + '*100,0)&"%"';
+        html += '<tr><td style="font-weight:bold;">Savings vs Pay-As-You-Go</td>' +
+                '<td style="text-align:right;" x:fmla="' + xlsEscape(pctFmla) + '">' +
+                xlsEscape(document.getElementById('percentSave').textContent) + '</td></tr>'; rowNum++;
+        // Upfront (1-Year) = List Price * 12 * discount rate.
+        const upfrontRow = rowNum + 1;
+        const upfrontFmla = '=ROUND(B' + listRow + '*12*B' + rateRow + ',0)';
+        html += '<tr><td style="font-weight:bold;">Upfront Cost (1-Year)</td>' +
+                xlsMoneyCell(document.getElementById('upfrontCost').textContent, '', upfrontFmla) + '</tr>'; rowNum++;
+        // Amortized Monthly = Upfront / 12.
+        html += '<tr><td style="font-weight:bold;">Amortized Monthly</td>' +
+                xlsMoneyCell(document.getElementById('amortizedCost').textContent, '', '=ROUND(B' + upfrontRow + '/12,0)') + '</tr>'; rowNum++;
+        // Break-Even = ROUNDUP(Upfront / Monthly Savings).
+        const beNum = document.getElementById('breakevenMonths').textContent.trim();
+        const beFmla = '=ROUNDUP(B' + upfrontRow + '/B' + savingsRow + ',0)';
+        html += '<tr><td style="font-weight:bold;">Break-Even (months)</td>' +
+                '<td style="text-align:right;" x:fmla="' + xlsEscape(beFmla) + '">' + xlsEscape(beNum) + '</td></tr>'; rowNum++;
+      }
 
       html += '</table></body></html>';
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const stamp = '' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) +
+                    '-' + pad(now.getHours()) + pad(now.getMinutes());
 
       const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'azure-cost-estimate.xls';
+      link.download = stamp + '-azure-cost-estimate.xls';
       link.click();
       URL.revokeObjectURL(link.href);
     }
