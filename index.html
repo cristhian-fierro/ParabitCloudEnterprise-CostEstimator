@@ -62,13 +62,39 @@
     .config-btn:hover { background: #d4f5e2; border-color: #0f9b56; }
     .config-btn.active { background: #0f9b56; color: white; border-color: #0f9b56; }
     .config-panel { background: #f0fff4; border-left: 4px solid #0f9b56; padding: 15px; margin-bottom: 20px; border-radius: 6px; }
+    .retention-btn { background: #f5f0ff; color: #4b2d8a; border: 2px solid #d3bff7; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
+    .retention-btn:hover { background: #e8d8ff; border-color: #7030a0; }
+    .retention-btn.active { background: #7030a0; color: white; border-color: #7030a0; }
+    .failover-btn { background: #f5f0ff; color: #4b1d9a; border: 2px solid #c9b8f5; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
+    .failover-btn:hover { background: #ebe0ff; border-color: #6019c4; }
+    .failover-btn.active { background: #6019c4; color: white; border-color: #6019c4; }
+    .dr-btn { background: #e6f9f8; color: #0c5a57; border: 2px solid #9de0db; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
+    .dr-btn:hover { background: #c8f0ed; border-color: #0d7a75; }
+    .dr-btn.active { background: #0d7a75; color: white; border-color: #0d7a75; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>Azure Cost Calculator</h1>
-      <p>Controller Tiers + Service Configuration | West US pricing | 1-Year Reservations available</p>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h1>Azure Cost Calculator</h1>
+          <p style="margin-top:6px; opacity:0.9;">Controller Tiers + Service Configuration | West US pricing | 1-Year Reservations available
+            <span id="appVersion" style="opacity:0.7; font-size:12px; margin-left:12px;"></span>
+          </p>
+        </div>
+        <div id="headerCostBanner" style="background:rgba(255,255,255,0.15); border-radius:8px; padding:14px 20px; display:flex; gap:28px; align-items:center; min-width:260px;">
+          <div style="text-align:center;">
+            <div style="font-size:11px; opacity:0.8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">Monthly (w/ tax)</div>
+            <div style="font-size:26px; font-weight:700;" id="headerMonthlyCost">—</div>
+          </div>
+          <div style="width:1px; background:rgba(255,255,255,0.3); height:40px;"></div>
+          <div style="text-align:center;">
+            <div style="font-size:11px; opacity:0.8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;">Annual (w/ tax)</div>
+            <div style="font-size:26px; font-weight:700;" id="headerAnnualCost">—</div>
+          </div>
+        </div>
+      </div>
     </header>
 
     <!-- HOW TO USE -->
@@ -99,8 +125,8 @@
         <div style="display:flex; gap:12px; align-items:flex-start;">
           <div style="font-size:22px; line-height:1;">4️⃣</div>
           <div>
-            <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Toggle Reservations &amp; Add-Ons</div>
-            <div style="font-size:12px; color:#555;">Enable <strong>1-Year Reservations</strong> for a ~35% discount on eligible services. Enable any <strong>Optional Add-Ons</strong> (geo-failover, backups, peak throughput) to include them in the total.</div>
+            <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Toggle Reservations, Add-Ons &amp; Support</div>
+            <div style="font-size:12px; color:#555;">Enable <strong>1-Year Reservations</strong> for a ~35% discount on eligible services. Choose a <strong>Failover scope</strong>, <strong>DR tier</strong>, and any <strong>Optional Add-Ons</strong> (backups, peak throughput).</div>
           </div>
         </div>
         <div style="display:flex; gap:12px; align-items:flex-start;">
@@ -119,7 +145,7 @@
         </div>
       </div>
       <div style="margin-top:16px; padding:10px 14px; background:#f0f6ff; border-left:4px solid #0078d4; border-radius:4px; font-size:12px; color:#0052a3;">
-        <strong>All prices are West US estimates</strong> based on the Azure Pricing Calculator (verified via Azure Pricing API, May 2025). Actual costs depend on region, negotiated discounts, and usage. Always validate against the <a href="https://azure.microsoft.com/pricing/calculator/" target="_blank" style="color:#0078d4;">official Azure Pricing Calculator</a> before committing to a budget.
+        <strong>All prices are West US estimates</strong> re-verified against the Azure Retail Prices API (June 2026). Outbound egress bandwidth is included in all totals. An estimated tax rate can be applied via the Tax Rate field — negotiated enterprise discounts and region-specific pricing are not included. Always validate against the <a href="https://azure.microsoft.com/en-us/pricing/calculator/" target="_blank" style="color:#0078d4;">official Azure Pricing Calculator</a> before committing to a budget.
       </div>
     </div>
 
@@ -181,20 +207,20 @@
       <div class="input-row">
         <div class="input-group">
           <label>Controllers (ACS-1EUL)</label>
-          <input type="range" id="controllers" min="1" max="3000" value="2000" step="1">
+          <input type="range" id="controllers" min="1" max="3000" value="500" step="1">
         </div>
         <div class="input-group">
-          <input type="text" id="ctrl-display" value="2,000" readonly>
+          <input type="text" id="ctrl-display" value="500" onchange="syncCtrlDisplay()" style="cursor:text;">
         </div>
       </div>
 
       <div class="input-row">
         <div class="input-group">
           <label>Heartbeat Interval (seconds or hours)</label>
-          <input type="range" id="hbInterval" min="10" max="86400" value="30" step="10">
+          <input type="range" id="hbInterval" min="10" max="86400" value="3600" step="10">
         </div>
         <div class="input-group">
-          <input type="text" id="hb-display" value="30s" readonly>
+          <input type="text" id="hb-display" value="1h" onchange="syncHbDisplay()" style="cursor:text;">
         </div>
       </div>
 
@@ -204,17 +230,17 @@
           <input type="range" id="credEvents" min="0" max="50" value="10" step="1">
         </div>
         <div class="input-group">
-          <input type="text" id="cred-display" value="10" readonly>
+          <input type="text" id="cred-display" value="10" onchange="syncCredDisplay()" style="cursor:text;">
         </div>
       </div>
 
       <div class="input-row">
         <div class="input-group">
           <label>Alarm Events (per hour per controller)</label>
-          <input type="range" id="alarmEvents" min="0" max="20" value="2" step="1">
+          <input type="range" id="alarmEvents" min="0" max="200" value="100" step="1">
         </div>
         <div class="input-group">
-          <input type="text" id="alarm-display" value="2" readonly>
+          <input type="text" id="alarm-display" value="100" onchange="syncAlarmDisplay()" style="cursor:text;">
         </div>
       </div>
 
@@ -228,6 +254,58 @@
           <label for="reservationsMode">1-Year Azure Reservations (35% savings)</label>
         </div>
       </div>
+
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #6019c4;">Failover Configuration</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+          <button class="failover-btn active" id="fo-none" onclick="selectFailover(0)">
+            <div style="font-weight:600; margin-bottom:3px;">None</div>
+            <div style="font-size:11px; opacity:0.85;">No geo-failover</div>
+          </button>
+          <button class="failover-btn" id="fo-critical" onclick="selectFailover(1)">
+            <div style="font-weight:600; margin-bottom:3px;">Critical Services</div>
+            <div style="font-size:11px; opacity:0.85;">Access + Alarms DR</div>
+          </button>
+          <button class="failover-btn" id="fo-all" onclick="selectFailover(2)">
+            <div style="font-weight:600; margin-bottom:3px;">All Services</div>
+            <div style="font-size:11px; opacity:0.85;">Full platform DR</div>
+          </button>
+        </div>
+        <div id="failoverDesc" style="font-size:12px; color:#555; padding: 8px 12px; background:#f5f0ff; border-left:3px solid #6019c4; border-radius:4px;">
+          None: No geo-failover — single-region deployment.
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #0d7a75;">Disaster Recovery</label>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+          <button class="dr-btn active" id="dr-none" onclick="selectDR(0)">
+            <div style="font-weight:600; margin-bottom:3px;">None</div>
+            <div style="font-size:11px; opacity:0.85;">No DR plan</div>
+          </button>
+          <button class="dr-btn" id="dr-standard" onclick="selectDR(1)">
+            <div style="font-weight:600; margin-bottom:3px;">Standard DR</div>
+            <div style="font-size:11px; opacity:0.85;">RTO 4h &middot; RPO 1h</div>
+          </button>
+          <button class="dr-btn" id="dr-advanced" onclick="selectDR(2)">
+            <div style="font-weight:600; margin-bottom:3px;">Advanced DR</div>
+            <div style="font-size:11px; opacity:0.85;">RTO &lt;1h &middot; RPO 15min</div>
+          </button>
+        </div>
+        <div id="drDesc" style="font-size:12px; color:#555; padding: 8px 12px; background:#e6f9f8; border-left:3px solid #0d7a75; border-radius:4px;">
+          None: No formal disaster recovery plan.
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #0078d4;">Estimated Tax Rate (%)</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <input type="number" id="taxRate" min="0" max="50" step="0.01" value="8.63"
+            style="width: 90px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;"
+            oninput="calculate()">
+          <span style="font-size: 13px; color: #555;">%&nbsp;&nbsp;— Enter your local or state tax rate. Tax is applied to the pre-tax subtotal.</span>
+        </div>
+      </div>
     </div>
 
     <!-- OPTIONAL ADD-ONS -->
@@ -238,6 +316,33 @@
       <div id="addonsTotalRow" style="margin-top:15px; padding-top:15px; border-top:2px solid #eee; display:none; justify-content:space-between; align-items:center;">
         <span style="font-weight:600; color:#333;">Add-Ons Monthly Total</span>
         <span style="font-weight:700; font-size:18px; color:#d17f00;" id="addonsTotal">$0</span>
+      </div>
+    </div>
+
+    <!-- DATA RETENTION -->
+    <div class="section">
+      <div class="section-title">Data Retention</div>
+      <p style="font-size:12px; color:#666; margin-bottom:18px;">Configure how long to retain operational data across the platform. Costs are calculated using Azure storage tiering: Hot (last 30 days) → Cool (1–12 months) → Archive (1+ years), plus Log Analytics extended retention for monitoring data.</p>
+
+      <label style="display:block; margin-bottom:8px; font-weight:600; color:#7030a0;">Retention Period</label>
+      <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:16px;">
+        <button class="retention-btn"        id="ret-3m"  onclick="selectRetention(3)"><div style="font-weight:600;">3 Months</div><div style="font-size:11px;opacity:0.85;">Operational buffer</div></button>
+        <button class="retention-btn"        id="ret-6m"  onclick="selectRetention(6)"><div style="font-weight:600;">6 Months</div><div style="font-size:11px;opacity:0.85;">Audit lookback</div></button>
+        <button class="retention-btn active" id="ret-1y"  onclick="selectRetention(12)"><div style="font-weight:600;">1 Year</div><div style="font-size:11px;opacity:0.85;">Compliance baseline</div></button>
+        <button class="retention-btn"        id="ret-3y"  onclick="selectRetention(36)"><div style="font-weight:600;">3 Years</div><div style="font-size:11px;opacity:0.85;">SOX &middot; PCI-DSS</div></button>
+        <button class="retention-btn"        id="ret-10y" onclick="selectRetention(120)"><div style="font-weight:600;">10 Years</div><div style="font-size:11px;opacity:0.85;">HIPAA &middot; Long-term</div></button>
+      </div>
+
+      <div style="margin-top:14px; margin-bottom:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <label style="font-weight:600; color:#7030a0; font-size:13px; white-space:nowrap;">Security Overhead (%)</label>
+        <input type="number" id="securityOverhead" min="0" max="200" step="1" value="50"
+          style="width:80px; padding:7px 10px; border:1px solid #d3bff7; border-radius:4px; font-size:14px; color:#4b2d8a; text-align:center;"
+          oninput="calculate()">
+        <span style="font-size:12px; color:#888;">Additional storage allocated for encryption metadata, audit headers, and security tokens. Default: 50%.</span>
+      </div>
+
+      <div id="retentionInfo" style="padding:12px 16px; background:#f5f0ff; border-left:4px solid #7030a0; border-radius:4px; font-size:12px; color:#4b2d8a;">
+        Loading…
       </div>
     </div>
 
@@ -256,14 +361,24 @@
           <div class="metric-sub" id="configSub">Balanced performance</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Monthly Cost</div>
+          <div class="metric-label">Monthly Subtotal</div>
           <div class="metric-value" id="monthlyCost">$2,150</div>
-          <div class="metric-sub">recurring</div>
+          <div class="metric-sub">before tax</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Annual Cost (Yr 2+)</div>
+          <div class="metric-label">Annual Subtotal</div>
           <div class="metric-value" id="annualCost">$25,800</div>
-          <div class="metric-sub">no upfront</div>
+          <div class="metric-sub">before tax</div>
+        </div>
+        <div class="metric-card" style="border-left-color: #ca5010;">
+          <div class="metric-label">Est. Tax</div>
+          <div class="metric-value" id="taxAmount" style="color: #ca5010;">$0</div>
+          <div class="metric-sub" id="taxRateDisplay">0%</div>
+        </div>
+        <div class="metric-card" style="border-left-color: #0078d4; background: #e8f4f8;">
+          <div class="metric-label">Monthly Total (w/ Tax)</div>
+          <div class="metric-value" id="monthlyTotal">$2,150</div>
+          <div class="metric-sub" id="annualTotal">$25,800 /year</div>
         </div>
         <div class="metric-card">
           <div class="metric-label">Savings vs Standard</div>
@@ -411,7 +526,7 @@
             <td>Premium EP3 (pre-warmed, no cold start)</td>
           </tr>
           <tr>
-            <td><strong>SQL Light DBs</strong></td>
+            <td><strong>SQL Light DBs</strong><br/><span style="font-size:11px; color:#666; font-weight:normal;">Elastic pool shared by: Site Mgmt, Access Point Mgmt, Login Mgmt, Device Mgmt, Encryption Mgmt, License Mgmt, Job Scheduler</span></td>
             <td>Basic 50 eDTU elastic pool ($73/mo)</td>
             <td>Standard 100 eDTU elastic pool ($218/mo)</td>
             <td>Premium P1 elastic pool ($450+/mo)</td>
@@ -528,13 +643,242 @@
       <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
     </div>
 
+    <!-- GLOSSARY -->
+    <div class="section">
+      <div class="section-title collapsed">Glossary</div>
+      <div style="columns: 2; column-gap: 40px; font-size: 13px; line-height: 1.7;">
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">AKS (Azure Kubernetes Service)</strong><br>
+          Microsoft's managed container orchestration platform. Runs the Parabit microservices (access control, alarms, comm, etc.) without requiring you to manage the underlying virtual machines. Cost depends on the number and size of nodes.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Alarm Event</strong><br>
+          A security alarm triggered by a controller (door forced open, duress, tamper, etc.). Higher alarm rates increase Cosmos DB and SQL Alarm Mgmt costs because each event is stored and indexed.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">App Gateway WAF_v2</strong><br>
+          Azure Web Application Firewall — the secure entry point for all HTTPS traffic from controllers and admin dashboards. Protects against OWASP top-10 attacks. Billed as a flat capacity unit fee per month.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">App Service</strong><br>
+          Azure's managed web hosting platform. Runs the Parabit portal and REST APIs without managing servers. Tier (B2 / S2 / P3v3) controls CPU, memory, and auto-scale capability.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Archive Storage</strong><br>
+          The lowest-cost Azure Blob tier ($0.00099/GB/mo). Used for data older than 12 months in the retention model. Retrieval takes hours and incurs extra fees — best for compliance-driven cold storage.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Azure Functions</strong><br>
+          Serverless compute that runs short-lived tasks (event processing, scheduled jobs) without a dedicated server. Billed per execution; near-zero cost at low volumes.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Blob Storage</strong><br>
+          Azure's object storage for raw files, backups, and archived event data. Three access tiers — Hot, Cool, Archive — with decreasing cost and increasing retrieval latency.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Controller</strong><br>
+          A physical access control hardware unit (door reader, panel, elevator controller, etc.) managed by the Parabit Cloud platform. Controller count is the primary cost driver — it determines the tier and scales Cosmos DB, SQL Alarm, and egress costs.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Cool Storage</strong><br>
+          Mid-tier Azure Blob storage ($0.01/GB/mo). Used for data 1–12 months old. Lower cost than Hot but incurs a per-GB retrieval fee. Good for data you access occasionally.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Cosmos DB</strong><br>
+          Azure's globally distributed NoSQL database. Stores high-volume, low-latency event data: heartbeats, credential scans, and alarm events. Cost is driven by throughput (RU/s) and storage. The Log Mgmt microservice runs on Cosmos DB.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Credential Event</strong><br>
+          A door access attempt — badge swipe, PIN entry, mobile credential tap, etc. Logged to Cosmos DB and processed by the Comm Service. Higher credential event rates increase database throughput costs.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Disaster Recovery (DR)</strong><br>
+          Tooling that restores service after a full regional failure — the primary site goes down and compute must be rebuilt in a secondary region. DR provides the runbooks and backups to do this. Contrast with <em>Geo-Failover</em>, which keeps a live secondary always ready.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">DTU / eDTU</strong><br>
+          Database Transaction Unit — Azure SQL's blended measure of CPU, memory, and I/O capacity. <em>eDTU</em> is the elastic-pool equivalent (shared across databases). Higher DTU = more concurrent queries handled. S1 = 20 DTU, S3 = 100 DTU, P1 = 125 DTU.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Egress (Outbound Bandwidth)</strong><br>
+          Data leaving Azure to the internet (controller status updates, API responses to client apps). First 5 GB/month is free; thereafter $0.087/GB at West US. Scales with controller count and heartbeat frequency.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Elastic Pool</strong><br>
+          A shared Azure SQL resource (eDTU budget) used by multiple databases. The seven lightweight Parabit microservices (Site Mgmt, Access Point Mgmt, Login Mgmt, Device Mgmt, Encryption Mgmt, License Mgmt, Job Scheduler) share a single elastic pool, reducing cost vs. individual databases.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Entra ID (formerly Azure AD)</strong><br>
+          Microsoft's identity platform. Used for admin user authentication, single sign-on, and role-based access control. Free tier covers most deployments; P1 license adds conditional access and MFA for regulated environments.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Geo-Failover (Active Geo-Replication)</strong><br>
+          An always-on secondary deployment in a second Azure region. If the primary region fails, traffic switches in under 30 seconds with near-zero data loss (RPO ≈ 0). More expensive than DR because the secondary runs 24/7. Selected via the Failover Configuration selector.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Heartbeat Interval</strong><br>
+          How often each controller checks in with the cloud (default: every 1 hour). Shorter intervals (e.g., 10 seconds) dramatically increase Cosmos DB throughput and egress costs because every controller sends a message each cycle.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Hot Storage</strong><br>
+          The highest-performance Azure Blob tier ($0.0208/GB/mo). Used for the most recent 30 days of event data. No retrieval fees — optimized for frequent access.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Key Vault</strong><br>
+          Azure's managed secret store. Holds API keys, database connection strings, TLS certificates, and encryption keys. Billed per operation; cost is minimal at platform scale.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Log Analytics</strong><br>
+          Azure Monitor's log store. Retains platform telemetry, security events, and audit trails beyond the default 30 days. Extended retention (31–730 days) costs $0.10/GB/mo; archive tier (730+ days) costs $0.026/GB/mo.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">LTR (Long-Term Retention)</strong><br>
+          A SQL Database feature that stores weekly, monthly, or yearly backup snapshots in RA-GRS Blob storage for up to 10 years. Used to meet HIPAA, SOX, and ISO 27001 data retention mandates beyond the standard 7–35 day PITR window.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">PITR (Point-in-Time Recovery)</strong><br>
+          SQL Database's ability to restore any database to any second within the retention window (7 days standard, up to 35 days with the backup add-on). Protects against accidental deletion or corruption.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Reservation (1-Year)</strong><br>
+          A pre-purchase commitment for Azure compute resources (VMs, SQL, App Service) in exchange for a ~35% discount vs. pay-as-you-go. Billed upfront or monthly. The break-even point vs. on-demand is typically 7–8 months. Only eligible services receive the discount.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">RPO (Recovery Point Objective)</strong><br>
+          The maximum acceptable data loss measured in time. RPO = 0 means zero data loss (synchronous geo-replication). RPO = 1 hour means up to 1 hour of transactions could be lost in a failure.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">RTO (Recovery Time Objective)</strong><br>
+          The maximum acceptable downtime from failure to full service restoration. RTO &lt;30s = near-instant failover (geo-replication). RTO 4h = service is restored within 4 hours using DR tooling.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">RU (Request Unit)</strong><br>
+          Cosmos DB's normalized unit of throughput — one RU represents the cost of reading a 1 KB item. Write operations cost more (typically 5× a read). Heartbeats cost ~5 RU each; alarm events cost ~10 RU. Total RU/s determines provisioning cost.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Service Configuration</strong><br>
+          The SKU and sizing level selected for all Azure services simultaneously. <em>Minimum</em> uses the cheapest viable SKUs (dev/test). <em>Standard</em> uses production-grade balanced SKUs. <em>Advanced</em> uses high-availability, zone-redundant, enterprise-grade SKUs.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">SLA (Service Level Agreement)</strong><br>
+          Microsoft's contractual uptime guarantee. AKS Uptime SLA ($73/mo) guarantees 99.99% API server availability. Without it, AKS offers a best-effort 99.5% target with no financial backing.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">SQL Elastic Pool</strong><br>
+          See <em>Elastic Pool</em>.
+        </div>
+
+        <div style="break-inside: avoid; margin-bottom: 14px;">
+          <strong style="color: #0078d4;">Tier (Controller Tier)</strong><br>
+          The four deployment scales: <em>Starter</em> (1–50 controllers), <em>Standard</em> (51–500), <em>Professional</em> (501–2,000), <em>Enterprise</em> (2,000+). The tier drives the baseline SKU sizes and cost ranges across all services.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CHANGELOG -->
+    <div class="section">
+      <div class="section-title collapsed">Changelog</div>
+      <div style="font-size:13px; line-height:1.8;">
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.4.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-06-12</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Fixed <strong>Cost by Category chart</strong> being empty — caused by a missing <code>annualCost</code> DOM element that threw a TypeError before the chart could update</li>
+            <li>Added <strong>live cost banner</strong> in the page header showing Monthly and Annual totals (with tax), updated on every input change</li>
+            <li>Added <strong>Annual Subtotal</strong> metric card (pre-tax) to the Summary section</li>
+            <li>Re-verified all West US prices against the Azure Retail Prices API (June 2026) — App Gateway, Blob Storage, App Service, Cosmos DB, and AKS pricing confirmed current</li>
+            <li>Added <strong>Glossary</strong> section with 30 plain-language definitions covering controllers, Azure services, pricing terms, and resilience concepts</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.3.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-06-12</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Added <strong>Failover Configuration</strong> selector (None / Critical Services / All Services) — replaces geo-failover add-on</li>
+            <li>Added <strong>Disaster Recovery</strong> tier selector (None / Standard DR / Advanced DR) with Azure Site Recovery pricing</li>
+            <li>Reworked <strong>Data Retention</strong>: auto-calculated GB from actual event byte sizes (Credential 1054B, Alarm 342B, Heartbeat 342B) with 50% security overhead; periods updated to 3mo / 6mo / 1yr / 3yr / 10yr</li>
+            <li>Added estimated tax (default 8.63%) to all cost outputs</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.2.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-20</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Added <strong>Egress / Outbound Bandwidth</strong> as a Networking line item (West US $0.087/GB, first 5 GB free)</li>
+            <li>Updated footer and disclaimer to reflect included costs</li>
+            <li>Added version number in header and this Changelog section</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.1.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-16</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Added tiered service configurations (Minimum / Standard / Advanced)</li>
+            <li>Added optional Add-On modules (SQL transaction buffer, geo-failover, backup, Cosmos backup)</li>
+            <li>Added How to Use guide section with step-by-step instructions</li>
+          </ul>
+        </div>
+
+        <div>
+          <strong style="color:#0078d4;">v1.0.0</strong>
+          <span style="color:#999; margin-left:8px;">2026-05-15</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Initial Azure Cost Calculator published to GitHub Pages</li>
+            <li>4 controller tiers (Starter / Standard / Professional / Enterprise)</li>
+            <li>1-Year Reservation discount toggle (35% off eligible services)</li>
+            <li>Dynamic Cosmos DB and SQL Alarm pricing based on event volume</li>
+            <li>Chart.js cost breakdown by category, CSV export, and print support</li>
+            <li>Accordion expand/collapse on all sections</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
     <div class="footer">
       <p>Azure Cost Calculator | Conservative Configuration + Phase 1 Optimizations</p>
-      <p>Estimates based on West US pricing. Actual costs may vary. See Azure Pricing for current rates.</p>
+      <p>Egress bandwidth and estimated tax included. Negotiated enterprise discounts and region-specific variations are not included. West US prices re-verified against the Azure Retail Prices API — June 2026. Validate against the <a href="https://azure.microsoft.com/pricing/calculator/" target="_blank" style="color:#0078d4;">Azure Pricing Calculator</a>.</p>
     </div>
   </div>
 
   <script>
+    const APP_VERSION = '1.4.0';
+
     // Data
     const TIERS = [
       { name: 'Starter', max: 50 },
@@ -564,7 +908,7 @@
         skus: ['Consumption', 'Consumption', 'Premium EP3'],
         eligible: false },
       // Database
-      { cat: 'Database', name: 'SQL Light DBs (elastic pool)',
+      { cat: 'Database', name: 'SQL Light DBs — elastic pool (Site, Access Point, Login, Device, Encryption, License, Job Scheduler)',
         minCosts:  [73,  73,  146, 219],
         consCosts: [218, 218, 435, 653],
         advCosts:  [450, 900, 1800, 3600],
@@ -600,6 +944,9 @@
         consCosts: [5, 5,  10, 15],
         advCosts:  [10, 15, 25, 35],
         skus: ['Basic peering', 'Standard peering', 'Premium peering'],
+        eligible: false },
+      { cat: 'Networking', name: 'Egress / Outbound Bandwidth', dynamic: 'egress',
+        skus: ['~15–80 GB/mo', '~25–700 GB/mo', '~40–3,200 GB/mo'],
         eligible: false },
       // Storage
       { cat: 'Storage', name: 'Azure Blob Storage',
@@ -660,34 +1007,25 @@
       {
         id: 'addon-sql-txbuffer',
         name: 'SQL DB – Transaction Buffer / Peak Throughput',
-        desc: 'Reserves extra eDTU capacity in the elastic pool to absorb transaction bursts without throttling.',
+        desc: 'Prevents system slowdowns and credential failures during peak periods (shift changes, mass access events) by reserving extra database capacity to absorb transaction bursts without throttling.',
         detail: 'Upgrades elastic pool: Basic 50→100 / Standard 100→200→400 eDTU. Priced per Azure elastic pool DTU tiers.',
         cat: 'Database',
         baseCosts: [50, 100, 181, 362], // Standard config, per controller tier
         eligible: true
       },
       {
-        id: 'addon-sql-geo',
-        name: 'SQL DB – HA / Geo-Failover (Active Geo-Replication)',
-        desc: 'Adds a readable secondary SQL replica in a paired Azure region for disaster recovery.',
-        detail: 'Billed at same DTU tier rate as primary in secondary region. Near-zero RPO, <30s RTO.',
-        cat: 'Database',
-        baseCosts: [73, 145, 218, 435], // secondary replica at same S-tier pricing
-        eligible: false
-      },
-      {
         id: 'addon-sql-backup',
         name: 'SQL DB – Backup Plan (PITR + LTR)',
-        desc: 'Extends backup retention to 35-day PITR plus long-term retention (weekly, monthly, yearly).',
-        detail: 'LTR stored as RA-GRS blobs at $0.026/GB/mo. 7-day PITR is included in base price.',
+        desc: 'Extends recovery options beyond the base 7-day window to 35 days plus weekly, monthly, and yearly snapshots — enabling forensic recovery after security incidents and satisfying data retention mandates under HIPAA, SOC 2, ISO 27001, and similar frameworks.',
+        detail: 'Covers all 3 SQL resources: elastic pool (7 lightweight DBs) + Comm Service + Alarm Mgmt. LTR stored as RA-GRS blobs at $0.026/GB/mo. 7-day PITR is included in base price.',
         cat: 'Storage',
-        baseCosts: [10, 25, 50, 100],
+        baseCosts: [20, 45, 90, 180],
         eligible: false
       },
       {
         id: 'addon-cosmos-backup',
         name: 'Cosmos DB – Continuous Backup & Multi-Region Reads',
-        desc: 'Enables continuous backup mode and adds one geo-redundant read replica region.',
+        desc: 'Protects audit trails and event history with point-in-time recovery (not just hourly snapshots), and improves dashboard and reporting performance for geographically distributed deployments through a geo-redundant read replica.',
         detail: 'Continuous backup: $0.20/GB/mo of stored backup data. Multi-region read replica billed at primary throughput rate.',
         cat: 'Database',
         baseCosts: [25, 75, 150, 300],
@@ -696,7 +1034,85 @@
     ];
 
     let chart = null;
-    let selectedConfig = 1; // 0=Minimum, 1=Standard, 2=Advanced
+    let selectedConfig = 1;       // 0=Minimum, 1=Standard, 2=Advanced
+    let selectedRetentionMonths = 12; // default: 1 year
+    let selectedFailover = 0;     // 0=None, 1=Critical, 2=All
+    let selectedDR = 0;           // 0=None, 1=Standard, 2=Advanced
+
+    // Estimated outbound GB/month [configIdx 0-2][tierIdx 0-3]
+    const EGRESS_GB = [
+      [15,   80,   400,  1200], // Minimum
+      [25,   150,  700,  2000], // Standard
+      [40,   250,  1100, 3200], // Advanced
+    ];
+
+    const multipliers = [0.5, 1.0, 2.0]; // Minimum / Standard / Advanced config
+
+    const EVENT_BYTES = { credential: 1054, alarm: 342, heartbeat: 342 };
+    const SECURITY_OVERHEAD = 0.50; // 50% overhead for encryption/audit metadata
+
+    const FAILOVER_OPTIONS = [
+      { name: 'None', desc: 'None: No geo-failover — single-region deployment, no secondary Azure region.', baseCosts: [0, 0, 0, 0], lineItems: [] },
+      {
+        name: 'Critical Services',
+        desc: 'Critical Services: Failover for services whose failure causes immediate operational impact — AKS, App Gateway, Comm Service DB, Alarm Mgmt DB. Near-zero RPO, <30s RTO.',
+        baseCosts: [733, 945, 1294, 1878],
+        lineItems: [
+          { name: 'AKS Secondary Cluster',      baseCosts: [289, 385, 481, 675] },
+          { name: 'App Gateway WAF Secondary',  baseCosts: [342, 342, 450, 550] },
+          { name: 'SQL – Comm Service Replica', baseCosts: [73,  145, 218, 435] },
+          { name: 'SQL – Alarm Mgmt Replica',   baseCosts: [29,  73,  145, 218] }
+        ]
+      },
+      {
+        name: 'All Services',
+        desc: 'All Services: Complete platform geo-redundancy — critical services plus SQL elastic pool, App Service, Cosmos DB geo-read replica, and Blob Storage GRS upgrade.',
+        baseCosts: [1127, 1520, 2151, 3375],
+        lineItems: [
+          { name: 'AKS Secondary Cluster',       baseCosts: [289, 385, 481, 675] },
+          { name: 'App Gateway WAF Secondary',   baseCosts: [342, 342, 450, 550] },
+          { name: 'SQL – Comm Service Replica',  baseCosts: [73,  145, 218, 435] },
+          { name: 'SQL – Alarm Mgmt Replica',    baseCosts: [29,  73,  145, 218] },
+          { name: 'SQL Light DBs Pool Replica',  baseCosts: [218, 218, 435, 653] },
+          { name: 'App Service Secondary',       baseCosts: [146, 292, 292, 584] },
+          { name: 'Cosmos DB Geo-Read Replica',  baseCosts: [25,  50,  100, 200] },
+          { name: 'Blob Storage GRS Upgrade',    baseCosts: [5,   15,  30,  60]  }
+        ]
+      }
+    ];
+
+    const DR_OPTIONS = [
+      { name: 'None', desc: 'None: No formal disaster recovery plan.', baseCosts: [0, 0, 0, 0], lineItems: [] },
+      {
+        name: 'Standard DR',
+        desc: 'Standard DR (RTO 4h / RPO 1h): Azure Site Recovery for AKS nodes, Recovery Services Vault, and Azure Backup for SQL databases. Suitable for most business continuity requirements.',
+        baseCosts: [100, 155, 235, 375],
+        lineItems: [
+          { name: 'Azure Site Recovery (AKS nodes)', baseCosts: [75,  100, 125, 175] },
+          { name: 'Recovery Services Vault storage', baseCosts: [10,  25,  50,  100] },
+          { name: 'Azure Backup – SQL databases',    baseCosts: [15,  30,  60,  100] }
+        ]
+      },
+      {
+        name: 'Advanced DR',
+        desc: 'Advanced DR (RTO <1h / RPO 15min): Enhanced ASR replication, Traffic Manager DNS failover, Azure Automation runbooks for orchestrated recovery. Required for regulated industries and mission-critical SLAs.',
+        baseCosts: [200, 305, 450, 730],
+        lineItems: [
+          { name: 'Azure Site Recovery (AKS nodes)', baseCosts: [75,  100, 125, 175] },
+          { name: 'Recovery Services Vault storage', baseCosts: [10,  25,  50,  100] },
+          { name: 'Azure Backup – SQL databases',    baseCosts: [15,  30,  60,  100] },
+          { name: 'Traffic Manager (DNS failover)',  baseCosts: [10,  10,  15,  20]  },
+          { name: 'Azure Automation Runbooks',       baseCosts: [15,  20,  25,  35]  },
+          { name: 'Enhanced replication storage',    baseCosts: [20,  40,  75,  150] },
+          { name: 'DR Orchestration & Testing',      baseCosts: [55,  80,  100, 150] }
+        ]
+      }
+    ];
+
+    function calculateEgressCost(tierIdx, configIdx) {
+      const billableGb = Math.max(0, EGRESS_GB[configIdx][tierIdx] - 5); // first 5 GB free
+      return Math.round(billableGb * 0.087); // $0.087/GB West US
+    }
 
     const CONFIGS = [
       { name: 'Minimum',  subtitle: 'Cost-optimized baseline',  color: '#107c10' },
@@ -855,8 +1271,106 @@
       calculate();
     }
 
+
+    function selectRetention(months) {
+      selectedRetentionMonths = months;
+      [{id:'ret-3m',v:3},{id:'ret-6m',v:6},{id:'ret-1y',v:12},{id:'ret-3y',v:36},{id:'ret-10y',v:120}]
+        .forEach(btn => document.getElementById(btn.id).classList.toggle('active', btn.v === months));
+      calculate();
+    }
+
+    function selectFailover(idx) {
+      selectedFailover = idx;
+      ['fo-none', 'fo-critical', 'fo-all'].forEach((id, i) =>
+        document.getElementById(id).classList.toggle('active', i === idx));
+      document.getElementById('failoverDesc').textContent = FAILOVER_OPTIONS[idx].desc;
+      calculate();
+    }
+
+    function selectDR(idx) {
+      selectedDR = idx;
+      ['dr-none', 'dr-standard', 'dr-advanced'].forEach((id, i) =>
+        document.getElementById(id).classList.toggle('active', i === idx));
+      document.getElementById('drDesc').textContent = DR_OPTIONS[idx].desc;
+      calculate();
+    }
+
+    function parseHbInput(str) {
+      str = (str || '').trim().toLowerCase();
+      if (str.endsWith('h')) return Math.round(parseFloat(str) * 3600);
+      if (str.endsWith('m')) return Math.round(parseFloat(str) * 60);
+      if (str.endsWith('s')) return parseInt(str) || 10;
+      return parseInt(str) || 10;
+    }
+
+    function syncCtrlDisplay() {
+      const val = Math.min(Math.max(1, parseInt(document.getElementById('ctrl-display').value.replace(/,/g, '')) || 1), 3000);
+      document.getElementById('controllers').value = val;
+      calculate();
+    }
+
+    function syncHbDisplay() {
+      const seconds = Math.min(Math.max(10, parseHbInput(document.getElementById('hb-display').value)), 86400);
+      document.getElementById('hbInterval').value = Math.round(seconds / 10) * 10;
+      calculate();
+    }
+
+    function syncCredDisplay() {
+      const val = Math.min(Math.max(0, parseInt(document.getElementById('cred-display').value) || 0), 50);
+      document.getElementById('credEvents').value = val;
+      calculate();
+    }
+
+    function syncAlarmDisplay() {
+      const val = Math.min(Math.max(0, parseInt(document.getElementById('alarm-display').value) || 0), 200);
+      document.getElementById('alarmEvents').value = val;
+      calculate();
+    }
+
+    function calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval, overheadPct) {
+      const hoursPerMonth = 730;
+      const heartbeatsPerHour = 3600 / Math.max(1, hbInterval);
+      const GB = 1024 * 1024 * 1024;
+      const overhead = (overheadPct != null ? overheadPct : SECURITY_OVERHEAD * 100) / 100;
+      const credBytes  = controllers * credEvents        * EVENT_BYTES.credential * hoursPerMonth;
+      const alarmBytes = controllers * alarmEvents       * EVENT_BYTES.alarm       * hoursPerMonth;
+      const hbBytes    = controllers * heartbeatsPerHour * EVENT_BYTES.heartbeat   * hoursPerMonth;
+      const rawBytes   = credBytes + alarmBytes + hbBytes;
+      const totalBytes = rawBytes * (1 + overhead);
+      return {
+        credGb:    credBytes  / GB,
+        alarmGb:   alarmBytes / GB,
+        hbGb:      hbBytes    / GB,
+        rawGb:     rawBytes   / GB,
+        totalGb:   totalBytes / GB,
+        overheadPct: overhead * 100
+      };
+    }
+
+    function calculateRetentionCost(ingestGb, retentionMonths) {
+
+      // Blob Storage tiering — steady-state monthly cost of all stored data
+      // Hot  : last 30 days            → $0.0208/GB/mo
+      // Cool : months 2–12             → $0.01/GB/mo
+      // Archive: beyond 12 months      → $0.00099/GB/mo
+      const hotGb     = ingestGb;
+      const coolGb    = ingestGb * Math.min(Math.max(0, retentionMonths - 1), 11);
+      const archiveGb = ingestGb * Math.max(0, retentionMonths - 12);
+      const blobCost  = Math.round((hotGb * 0.0208) + (coolGb * 0.01) + (archiveGb * 0.00099));
+
+      // Log Analytics extended retention (~10% of total data goes to monitoring logs)
+      // Interactive (31–730 days): $0.10/GB/mo on retained data
+      // Archive     (731+ days)  : $0.026/GB/mo
+      const logGb             = ingestGb * 0.10;
+      const laInteractiveMonths = Math.min(Math.max(0, retentionMonths - 1), 23);
+      const laArchiveMonths     = Math.max(0, retentionMonths - 24);
+      const laCost = Math.round((logGb * laInteractiveMonths * 0.10) + (logGb * laArchiveMonths * 0.026));
+
+      return { blobCost, laCost, total: blobCost + laCost,
+               hotGb, coolGb, archiveGb, logGb, retentionMonths };
+    }
+
     function getAddonCost(addon, tierIdx) {
-      const multipliers = [0.5, 1.0, 2.0]; // Minimum / Standard / Advanced
       return Math.round(addon.baseCosts[tierIdx] * multipliers[selectedConfig]);
     }
 
@@ -961,6 +1475,8 @@
           if (alDay > 500000 && tierIdx < 3 && selectedConfig < 2) {
             cost = alarmBaseCosts[selectedConfig][Math.min(tierIdx + 1, 3)];
           }
+        } else if (s.dynamic === 'egress') {
+          cost = calculateEgressCost(tierIdx, selectedConfig);
         } else {
           const costMatrix = [s.minCosts, s.consCosts, s.advCosts];
           cost = costMatrix[selectedConfig][tierIdx];
@@ -1000,15 +1516,55 @@
         document.getElementById('addonsTotal').textContent = formatCurrency(addonMonthly) + '/mo';
       }
 
-      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0) + addonMonthly;
-      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly;
+      // Data retention (auto-calculated from event byte sizes + configurable security overhead)
+      const securityOverheadPct = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
+      const dataVol = calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval, securityOverheadPct);
+      const ret = calculateRetentionCost(dataVol.totalGb, selectedRetentionMonths);
+      const retPeriodLabel = {3:'3 Months', 6:'6 Months', 12:'1 Year', 36:'3 Years', 120:'10 Years'}[selectedRetentionMonths];
+      const complianceNote = {
+        3:   'Short-term operational buffer. Suitable for dev/test environments.',
+        6:   'Minimum audit lookback for most incident investigation requirements.',
+        12:  'Standard compliance baseline. Covers most short-term regulatory frameworks.',
+        36:  'Meets PCI-DSS (1 yr) and SOX transactional record requirements.',
+        120: 'HIPAA maximum and long-term archive for government/regulated industries.'
+      }[selectedRetentionMonths];
+      document.getElementById('retentionInfo').innerHTML =
+        `<strong>${retPeriodLabel} Retention &middot; Auto-calculated: ${dataVol.totalGb.toFixed(2)} GB/mo</strong><br>` +
+        `<span style="opacity:0.85;">Credentials ${dataVol.credGb.toFixed(2)} GB + Alarms ${dataVol.alarmGb.toFixed(2)} GB + Heartbeats ${dataVol.hbGb.toFixed(2)} GB = ${dataVol.rawGb.toFixed(2)} GB raw + ${dataVol.overheadPct.toFixed(0)}% security overhead</span><br><br>` +
+        `<strong>Blob Storage:</strong> ${Math.round(ret.hotGb)} GB Hot + ${Math.round(ret.coolGb)} GB Cool + ${Math.round(ret.archiveGb)} GB Archive &rarr; <strong>${formatCurrency(ret.blobCost)}/mo</strong><br>` +
+        `<strong>Log Analytics:</strong> ${dataVol.totalGb.toFixed(2)} GB/mo log data extended retention &rarr; <strong>${formatCurrency(ret.laCost)}/mo</strong><br><br>` +
+        `<strong>Total retention cost: ${formatCurrency(ret.total)}/mo &middot; ${formatCurrency(ret.total * 12)}/yr</strong><br>` +
+        `<span style="opacity:0.85;">${complianceNote}</span>`;
+
+      // Failover and DR costs (not reservation-eligible)
+      const failoverOption = FAILOVER_OPTIONS[selectedFailover];
+      const failoverCost = selectedFailover === 0
+        ? 0
+        : Math.round(failoverOption.baseCosts[tierIdx] * multipliers[selectedConfig]);
+      const drOption = DR_OPTIONS[selectedDR];
+      const drCost = selectedDR === 0
+        ? 0
+        : Math.round(drOption.baseCosts[tierIdx] * multipliers[selectedConfig]);
+
+      const baseMonthly = rows.reduce((a, r) => a + r.cost, 0) + addonMonthly + ret.total + failoverCost + drCost;
+      const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly + ret.total + failoverCost + drCost;
       const savings = baseOriginal - baseMonthly;
       const savingsPercent = baseOriginal > 0 ? Math.round(savings / baseOriginal * 100) : 0;
 
+      const taxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
+      const taxAmount = Math.round(baseMonthly * taxRate / 100);
+      const totalMonthly = baseMonthly + taxAmount;
+
       document.getElementById('monthlyCost').textContent = formatCurrency(baseMonthly);
       document.getElementById('annualCost').textContent = formatCurrency(baseMonthly * 12);
+      document.getElementById('taxAmount').textContent = formatCurrency(taxAmount);
+      document.getElementById('taxRateDisplay').textContent = taxRate + '%';
+      document.getElementById('monthlyTotal').textContent = formatCurrency(totalMonthly);
+      document.getElementById('annualTotal').textContent = formatCurrency(totalMonthly * 12) + ' /year';
       document.getElementById('percentSave').textContent = savingsPercent + '%';
       document.getElementById('amountSave').textContent = formatCurrency(savings) + '/mo';
+      document.getElementById('headerMonthlyCost').textContent = formatCurrency(totalMonthly) + '/mo';
+      document.getElementById('headerAnnualCost').textContent = formatCurrency(totalMonthly * 12) + '/yr';
 
       // Reservation detail
       if (useReservations) {
@@ -1036,7 +1592,6 @@
         if (!cats[r.cat]) cats[r.cat] = 0;
         cats[r.cat] += r.cost;
       });
-
       // Merge add-on rows into their correct category position (no duplicate headers)
       const catOrder = [];
       rows.forEach(r => { if (!catOrder.includes(r.cat)) catOrder.push(r.cat); });
@@ -1056,10 +1611,38 @@
         }
         const badge = r.reserved ? ' <span class="badge badge-reserved">reserved</span>' : '';
         const addonBadge = r.baseCosts ? ' <span class="badge" style="background:#fff3e0;color:#b76c00;">add-on</span>' : '';
-        const skuLabel = r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name;
+        const skuLabel = r.dynamic === 'egress'
+          ? `~${EGRESS_GB[selectedConfig][tierIdx]} GB/mo`
+          : (r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name);
         const configBadge = `<span style="font-size:11px; color:#666;">${skuLabel}</span>`;
         html += `<tr><td>${r.name}${badge}${addonBadge}</td><td>${configBadge}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
       });
+      if (ret.total > 0) {
+        html += `<tr class="cat-row"><td><strong>Data Retention</strong></td><td></td><td class="text-right"><strong>${formatCurrency(ret.total)}</strong></td><td class="text-right"><strong>${formatCurrency(ret.total * 12)}</strong></td></tr>`;
+        html += `<tr><td>Blob Storage Archival (${retPeriodLabel})</td><td><span style="font-size:11px; color:#666;">Hot &rarr; Cool &rarr; Archive tiering</span></td><td class="text-right">${formatCurrency(ret.blobCost)}</td><td class="text-right">${formatCurrency(ret.blobCost * 12)}</td></tr>`;
+        if (ret.laCost > 0) {
+          html += `<tr><td>Log Analytics Extended Retention</td><td><span style="font-size:11px; color:#666;">${selectedRetentionMonths > 24 ? 'Interactive + Archive' : 'Interactive (31–730 days)'}</span></td><td class="text-right">${formatCurrency(ret.laCost)}</td><td class="text-right">${formatCurrency(ret.laCost * 12)}</td></tr>`;
+        }
+      }
+      if (failoverCost > 0) {
+        html += `<tr class="cat-row"><td><strong>Geo-Failover</strong></td><td></td><td class="text-right"><strong>${formatCurrency(failoverCost)}</strong></td><td class="text-right"><strong>${formatCurrency(failoverCost * 12)}</strong></td></tr>`;
+        failoverOption.lineItems.forEach(item => {
+          const itemCost = Math.round(item.baseCosts[tierIdx] * multipliers[selectedConfig]);
+          html += `<tr><td>${item.name}</td><td><span style="font-size:11px; color:#666;">${failoverOption.name}</span></td><td class="text-right">${formatCurrency(itemCost)}</td><td class="text-right">${formatCurrency(itemCost * 12)}</td></tr>`;
+        });
+      }
+      if (drCost > 0) {
+        html += `<tr class="cat-row"><td><strong>Disaster Recovery</strong></td><td></td><td class="text-right"><strong>${formatCurrency(drCost)}</strong></td><td class="text-right"><strong>${formatCurrency(drCost * 12)}</strong></td></tr>`;
+        drOption.lineItems.forEach(item => {
+          const itemCost = Math.round(item.baseCosts[tierIdx] * multipliers[selectedConfig]);
+          html += `<tr><td>${item.name}</td><td><span style="font-size:11px; color:#666;">${drOption.name}</span></td><td class="text-right">${formatCurrency(itemCost)}</td><td class="text-right">${formatCurrency(itemCost * 12)}</td></tr>`;
+        });
+      }
+      if (taxAmount > 0) {
+        html += `<tr class="cat-row"><td><strong>Tax</strong></td><td></td><td class="text-right"><strong>${formatCurrency(taxAmount)}</strong></td><td class="text-right"><strong>${formatCurrency(taxAmount * 12)}</strong></td></tr>`;
+        html += `<tr><td>Estimated Tax (${taxRate}%)</td><td><span style="font-size:11px; color:#666;">Applied to subtotal</span></td><td class="text-right">${formatCurrency(taxAmount)}</td><td class="text-right">${formatCurrency(taxAmount * 12)}</td></tr>`;
+      }
+      html += `<tr style="border-top:2px solid #0078d4; font-weight:700; background:#f0f6ff;"><td>Total (w/ Tax)</td><td></td><td class="text-right">${formatCurrency(totalMonthly)}</td><td class="text-right">${formatCurrency(totalMonthly * 12)}</td></tr>`;
       document.getElementById('serviceTable').innerHTML = html;
 
       // Chart
@@ -1072,7 +1655,8 @@
         'Storage': '#ffc900',
         'Security & Identity': '#d83b01',
         'Monitoring': '#038387',
-        'External': '#e81123'
+        'External': '#e81123',
+        'Support': '#ca5010'
       };
       const catCols = catLabels.map(c => catColors[c] || '#ccc');
 
@@ -1146,7 +1730,22 @@
       csv += 'Service Configuration,' + CONFIGS[selectedConfig].name + '\n';
       csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
       csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
-      csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n\n';
+      csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n';
+      const csvTaxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
+      csv += 'Tax Rate,' + csvTaxRate + '%\n';
+      csv += 'Failover Scope,' + FAILOVER_OPTIONS[selectedFailover].name + '\n';
+      csv += 'DR Tier,' + DR_OPTIONS[selectedDR].name + '\n';
+      csv += 'Retention Period,' + {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths] + '\n';
+      const csvOverhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
+      const csvDataVol = calculateMonthlyDataGb(
+        parseInt(controllers),
+        parseInt(document.getElementById('credEvents').value),
+        parseInt(document.getElementById('alarmEvents').value),
+        parseInt(document.getElementById('hbInterval').value),
+        csvOverhead
+      );
+      csv += 'Security Overhead,' + csvOverhead + '%\n';
+      csv += 'Data Ingested per Month (auto-calculated),' + csvDataVol.totalGb.toFixed(2) + ' GB\n\n';
       csv += 'Service Costs\n';
       csv += 'Service,Configuration,Monthly,Annual\n';
       rows.forEach(row => {
@@ -1155,8 +1754,10 @@
           csv += cells[0].textContent + ',' + cells[1].textContent + ',' + cells[2].textContent + ',' + cells[3].textContent + '\n';
         }
       });
-      csv += '\n' + document.getElementById('monthlyCost').textContent + '/mo\n';
-      csv += document.getElementById('annualCost').textContent + '/year\n';
+      csv += '\nSubtotal (before tax),' + document.getElementById('monthlyCost').textContent + '/mo\n';
+      csv += 'Estimated Tax (' + document.getElementById('taxRateDisplay').textContent + '),' + document.getElementById('taxAmount').textContent + '/mo\n';
+      csv += 'Total (with tax),' + document.getElementById('monthlyTotal').textContent + '/mo\n';
+      csv += 'Annual Total (with tax),' + document.getElementById('annualTotal').textContent + '\n';
 
       const link = document.createElement('a');
       link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -1169,12 +1770,17 @@
     }
 
     function resetToDefaults() {
-      document.getElementById('controllers').value = '2000';
-      document.getElementById('hbInterval').value = '30';
+      document.getElementById('controllers').value = '500';
+      document.getElementById('hbInterval').value = '3600';
       document.getElementById('credEvents').value = '10';
-      document.getElementById('alarmEvents').value = '2';
+      document.getElementById('alarmEvents').value = '100';
       document.getElementById('reservationsMode').checked = true;
+      document.getElementById('taxRate').value = '8.63';
+      document.getElementById('securityOverhead').value = '50';
       selectConfig(1);
+      selectFailover(0);
+      selectDR(0);
+      selectRetention(12);
     }
 
     // Event listeners
@@ -1182,18 +1788,23 @@
     document.getElementById('hbInterval').addEventListener('input', calculate);
     document.getElementById('credEvents').addEventListener('input', calculate);
     document.getElementById('alarmEvents').addEventListener('input', calculate);
+    document.getElementById('securityOverhead').addEventListener('input', calculate);
 
     // Initial render
     initAddOns();
+    selectFailover(0);
+    selectDR(0);
     selectConfig(1); // populate config panel, then triggers calculate()
+    selectRetention(12);
 
     // Accordion
     function initAccordions() {
       document.querySelectorAll('.section').forEach(section => {
         const title = section.querySelector(':scope > .section-title');
         if (!title) return;
+        const startCollapsed = title.classList.contains('collapsed');
         const content = document.createElement('div');
-        content.className = 'section-content';
+        content.className = 'section-content' + (startCollapsed ? ' collapsed' : '');
         Array.from(section.children).forEach(child => {
           if (child !== title) content.appendChild(child);
         });
@@ -1205,6 +1816,8 @@
       });
     }
     initAccordions();
+
+    document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
 </script>
 </body>
 </html>
