@@ -81,16 +81,26 @@ Everything is in `index.html` in three sections:
 
 ## Pricing Data
 
-All Azure prices are West US estimates re-verified against the Azure Retail Prices API (June 2026). Confirmed current prices:
+All Azure prices are West US estimates re-verified via live Refresh from Azure (June 2026). `DEFAULT_PRICING` values last updated 2026-06-18:
+
+| Key | Value | Source |
+|---|---|---|
+| `blobHot` | $0.0208/GB/mo | Azure Retail Prices API — live |
+| `blobCool` | $0.0115/GB/mo | Azure Retail Prices API — live |
+| `blobArchive` | $0.002/GB/mo | Azure Retail Prices API — live |
+| `laInteractive` | $0.13/GB/mo | Azure Retail Prices API — live |
+| `laArchive` | $0.026/GB/mo | Manual — no API meter match yet |
+| `cosmosServerless` | $0.279/M RU | Azure Retail Prices API — live |
+| `cosmosProvisioned` | $0.008/hr per 100 RU/s | Azure Retail Prices API — live |
+| `cosmosMultiRegion` | $0.016/hr per 100 RU/s | Azure Retail Prices API — live |
+| `egressPerGb` | $0.096/GB | Azure Retail Prices API — live |
+
+Other service costs (flat monthly estimates in `SERVICES`/`ADD_ONS`/`FAILOVER_OPTIONS`/`DR_OPTIONS`):
 
 | Service | Verified Price |
 |---|---|
 | App Gateway WAF_v2 | $341.64/mo base → code uses $342 |
-| Blob Storage Hot LRS | $0.0208/GB/mo |
 | App Service S2 | $146/mo (Windows) |
-| Cosmos DB Serverless | $0.279/M RU |
-| Cosmos DB Provisioned | $0.008/hr per 100 RU/s |
-| Cosmos DB Multi-region write | $0.016/hr per 100 RU/s |
 | AKS Uptime SLA | $0.10/hr → $73/mo |
 
 When updating prices, update the relevant arrays in `SERVICES`, `ADD_ONS`, `FAILOVER_OPTIONS`, and `DR_OPTIONS`, and update the static comparison tables in the HTML markup to stay in sync.

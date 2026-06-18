@@ -183,7 +183,7 @@
             <div style="font-weight: 600; margin-bottom: 4px;">Standard</div>
             <div style="font-size: 11px; color: #666;">51-500 controllers</div>
           </button>
-          <button onclick="selectTier(3, 'Professional')" style="padding: 12px; background: #0078d4; color: white; border: 2px solid #0078d4; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-professional">
+          <button onclick="selectTier(3, 'Professional')" style="padding: 12px; background: #f0f0f0; color: #333; border: 2px solid #ddd; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-professional">
             <div style="font-weight: 600; margin-bottom: 4px;">Professional</div>
             <div style="font-size: 11px; opacity: 0.9;">501-2,000 controllers</div>
           </button>
@@ -833,6 +833,17 @@
       <div style="font-size:13px; line-height:1.8;">
 
         <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.5.1</strong>
+          <span style="color:#999; margin-left:8px;">2026-06-18</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Updated <strong>DEFAULT_PRICING</strong> to live-verified West US prices (June 2026): Blob Cool $0.01→$0.0115, Blob Archive $0.00099→$0.002, Log Analytics Retention $0.10→$0.13, Egress $0.087→$0.096/GB</li>
+            <li>Fixed <strong>Cosmos DB SKU label</strong> — now shows "Serverless" for Minimum config and Standard config at Starter/Standard tiers (previously always showed "Autoscale" for Standard config regardless of actual pricing mode)</li>
+            <li>Fixed <strong>Professional tier button</strong> appearing highlighted blue on every page load — hardcoded inline style corrected to match the inactive state of other tier buttons</li>
+            <li>Improved <strong>Log Analytics Archive</strong> price-refresh query — broadened filter so the pick function can match any archive-named meter regardless of exact name variation in the Azure Retail Prices API</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
           <strong style="color:#0078d4;">v1.4.0</strong>
           <span style="color:#999; margin-left:8px;">2026-06-12</span>
           <ul style="margin:6px 0 0 18px; color:#444;">
@@ -898,7 +909,7 @@
   </div>
 
   <script>
-    const APP_VERSION = '1.4.0';
+    const APP_VERSION = '1.5.1';
 
     // Data
     const TIERS = [
@@ -1078,10 +1089,10 @@
     // DEFAULT_PRICING is the built-in baseline; PRICING is the mutable copy used by the
     // dynamic cost functions (calculateRetentionCost / calculateCosmosCost / calculateEgressCost).
     const DEFAULT_PRICING = Object.freeze({
-      blobHot: 0.0208, blobCool: 0.01, blobArchive: 0.00099,
-      laInteractive: 0.10, laArchive: 0.026,
+      blobHot: 0.0208, blobCool: 0.0115, blobArchive: 0.002,
+      laInteractive: 0.13, laArchive: 0.026,
       cosmosServerless: 0.279, cosmosProvisioned: 0.008, cosmosMultiRegion: 0.016,
-      egressPerGb: 0.087
+      egressPerGb: 0.096
     });
     let PRICING = { ...DEFAULT_PRICING }; // overwritten by live refresh; restored on reset
 
@@ -1145,7 +1156,7 @@
 
     function calculateEgressCost(tierIdx, configIdx) {
       const billableGb = Math.max(0, EGRESS_GB[configIdx][tierIdx] - 5); // first 5 GB free
-      return Math.round(billableGb * PRICING.egressPerGb); // $0.087/GB West US
+      return Math.round(billableGb * PRICING.egressPerGb);
     }
 
     const CONFIGS = [
@@ -1648,6 +1659,8 @@
         const addonBadge = r.baseCosts ? ' <span class="badge" style="background:#fff3e0;color:#b76c00;">add-on</span>' : '';
         const skuLabel = r.dynamic === 'egress'
           ? `~${EGRESS_GB[selectedConfig][tierIdx]} GB/mo`
+          : r.dynamic === 'cosmos'
+          ? (selectedConfig === 0 || (selectedConfig === 1 && tierIdx <= 1) ? 'Serverless' : selectedConfig === 2 ? 'Multi-region write' : 'Autoscale')
           : (r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name);
         const configBadge = `<span style="font-size:11px; color:#666;">${skuLabel}</span>`;
         html += `<tr><td>${r.name}${badge}${addonBadge}</td><td>${configBadge}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
@@ -2035,8 +2048,8 @@
         filter: "serviceName eq 'Log Analytics' and armRegionName eq 'westus' and contains(meterName, 'Data Retention')",
         pick: items => items.find(i => /Data Retention/i.test(i.meterName) && !/archive/i.test(i.meterName) && i.retailPrice > 0 && /GB/i.test(i.unitOfMeasure || '')) },
       { key: 'laArchive', label: 'Log Analytics – Archived logs', unit: '/GB/mo',
-        filter: "serviceName eq 'Log Analytics' and armRegionName eq 'westus' and contains(meterName, 'Archive')",
-        pick: items => items.find(i => /archive/i.test(i.meterName) && i.retailPrice > 0 && /GB/i.test(i.unitOfMeasure || '')) },
+        filter: "serviceName eq 'Log Analytics' and armRegionName eq 'westus'",
+        pick: items => items.find(i => /(archive|archived)/i.test(i.meterName) && i.retailPrice > 0 && /GB/i.test(i.unitOfMeasure || '')) },
     ];
 
     function blobPick(items) {
