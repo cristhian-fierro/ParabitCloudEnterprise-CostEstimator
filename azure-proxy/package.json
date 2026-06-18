@@ -1,0 +1,12 @@
+{
+  "name": "azure-price-proxy",
+  "version": "1.0.0",
+  "description": "CORS proxy for the Azure Retail Prices API, used by the Parabit Cloud Cost Estimator.",
+  "main": "src/functions/*.js",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0"
+  }
+}
