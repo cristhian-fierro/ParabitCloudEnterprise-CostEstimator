@@ -140,7 +140,7 @@
           <div style="font-size:22px; line-height:1;">6️⃣</div>
           <div>
             <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Export or Print</div>
-            <div style="font-size:12px; color:#555;">Click <strong>Export to CSV</strong> to open in Excel, or <strong>Print</strong> for a formatted PDF. Use <strong>Reset</strong> to return all settings to the Standard defaults.</div>
+            <div style="font-size:12px; color:#555;">Click <strong>Export to Excel</strong> to download a formatted spreadsheet, or <strong>Print</strong> for a formatted PDF. Use <strong>Reset</strong> to return all settings to the Standard defaults.</div>
           </div>
         </div>
       </div>
@@ -638,7 +638,7 @@
 
     <!-- ACTIONS -->
     <div class="section" style="text-align: center;">
-      <button onclick="exportToCSV()">📥 Export to CSV (for Excel)</button>
+      <button onclick="exportToExcel()">📥 Export to Excel</button>
       <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
       <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
     </div>
@@ -862,7 +862,7 @@
             <li>4 controller tiers (Starter / Standard / Professional / Enterprise)</li>
             <li>1-Year Reservation discount toggle (35% off eligible services)</li>
             <li>Dynamic Cosmos DB and SQL Alarm pricing based on event volume</li>
-            <li>Chart.js cost breakdown by category, CSV export, and print support</li>
+            <li>Chart.js cost breakdown by category, Excel export, and print support</li>
             <li>Accordion expand/collapse on all sections</li>
           </ul>
         </div>
@@ -1719,50 +1719,120 @@
       }
     }
 
-    function exportToCSV() {
+    // "$12,345" -> 12345 ; "" / non-numeric -> NaN
+    function moneyToNum(text) {
+      const n = parseFloat(String(text).replace(/[^0-9.\-]/g, ''));
+      return isNaN(n) ? NaN : n;
+    }
+
+    // Escape text for safe insertion into the export HTML.
+    function xlsEscape(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // Build a currency <td> that Excel treats as a real number (summable) while
+    // still displaying "$1,234". Falls back to plain text for non-currency values.
+    function xlsMoneyCell(text, extraStyle) {
+      const n = moneyToNum(text);
+      const style = "mso-number-format:'\\0024#,##0';text-align:right;" + (extraStyle || '');
+      if (isNaN(n)) return '<td style="text-align:right;' + (extraStyle || '') + '">' + xlsEscape(text) + '</td>';
+      return '<td style="' + style + '">' + n + '</td>';
+    }
+
+    function exportToExcel() {
       const controllers = document.getElementById('controllers').value;
       const tierIdx = getTierIndex(parseInt(controllers));
-      const rows = document.querySelectorAll('#serviceTable tr');
-      let csv = 'Azure Cost Estimate\n\n';
-      csv += 'Configuration\n';
-      csv += 'Controllers,' + controllers + '\n';
-      csv += 'Controller Tier,' + TIERS[tierIdx].name + '\n';
-      csv += 'Service Configuration,' + CONFIGS[selectedConfig].name + '\n';
-      csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
-      csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
-      csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n';
-      const csvTaxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
-      csv += 'Tax Rate,' + csvTaxRate + '%\n';
-      csv += 'Failover Scope,' + FAILOVER_OPTIONS[selectedFailover].name + '\n';
-      csv += 'DR Tier,' + DR_OPTIONS[selectedDR].name + '\n';
-      csv += 'Retention Period,' + {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths] + '\n';
-      const csvOverhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
-      const csvDataVol = calculateMonthlyDataGb(
+      const taxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
+      const overhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
+      const dataVol = calculateMonthlyDataGb(
         parseInt(controllers),
         parseInt(document.getElementById('credEvents').value),
         parseInt(document.getElementById('alarmEvents').value),
         parseInt(document.getElementById('hbInterval').value),
-        csvOverhead
+        overhead
       );
-      csv += 'Security Overhead,' + csvOverhead + '%\n';
-      csv += 'Data Ingested per Month (auto-calculated),' + csvDataVol.totalGb.toFixed(2) + ' GB\n\n';
-      csv += 'Service Costs\n';
-      csv += 'Service,Configuration,Monthly,Annual\n';
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length > 0) {
-          csv += cells[0].textContent + ',' + cells[1].textContent + ',' + cells[2].textContent + ',' + cells[3].textContent + '\n';
-        }
-      });
-      csv += '\nSubtotal (before tax),' + document.getElementById('monthlyCost').textContent + '/mo\n';
-      csv += 'Estimated Tax (' + document.getElementById('taxRateDisplay').textContent + '),' + document.getElementById('taxAmount').textContent + '/mo\n';
-      csv += 'Total (with tax),' + document.getElementById('monthlyTotal').textContent + '/mo\n';
-      csv += 'Annual Total (with tax),' + document.getElementById('annualTotal').textContent + '\n';
+      const retentionLabel = {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths];
 
+      // Selected-options rows (label, value)
+      const configRows = [
+        ['Controllers', controllers],
+        ['Controller Tier', TIERS[tierIdx].name],
+        ['Service Configuration', CONFIGS[selectedConfig].name],
+        ['Heartbeat Interval', document.getElementById('hb-display').value],
+        ['Credential Events', document.getElementById('cred-display').value],
+        ['Alarm Events', document.getElementById('alarm-display').value],
+        ['Tax Rate', taxRate + '%'],
+        ['Failover Scope', FAILOVER_OPTIONS[selectedFailover].name],
+        ['DR Tier', DR_OPTIONS[selectedDR].name],
+        ['Retention Period', retentionLabel],
+        ['Security Overhead', overhead + '%'],
+        ['Data Ingested per Month (auto-calculated)', dataVol.totalGb.toFixed(2) + ' GB']
+      ];
+
+      const HEADER_FILL = 'background:#0078d4;color:#ffffff;font-weight:bold;';
+      const CAT_FILL    = 'background:#eaf3fb;font-weight:bold;';
+
+      let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+                 'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+                 'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">' +
+                 '<style>td,th{border:1px solid #cccccc;padding:4px 8px;font-family:Calibri,Arial,sans-serif;font-size:11pt;}' +
+                 'table{border-collapse:collapse;}</style></head><body>';
+
+      html += '<table>';
+      // Title
+      html += '<tr><td colspan="4" style="font-size:16pt;font-weight:bold;border:none;">Azure Cost Estimate</td></tr>';
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
+
+      // Configuration block
+      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">Configuration</td></tr>';
+      configRows.forEach(r => {
+        html += '<tr><td style="font-weight:bold;">' + xlsEscape(r[0]) + '</td><td>' + xlsEscape(r[1]) + '</td></tr>';
+      });
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
+
+      // Service Costs table
+      html += '<tr>' +
+              '<td style="' + HEADER_FILL + '">Service</td>' +
+              '<td style="' + HEADER_FILL + '">Configuration</td>' +
+              '<td style="' + HEADER_FILL + 'text-align:right;">Monthly</td>' +
+              '<td style="' + HEADER_FILL + 'text-align:right;">Annual</td></tr>';
+      document.querySelectorAll('#serviceTable tr').forEach(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 4) return;
+        const isCat = row.classList.contains('cat-row');
+        const rowStyle = isCat ? CAT_FILL : '';
+        html += '<tr>' +
+                '<td style="' + rowStyle + '">' + xlsEscape(cells[0].textContent.trim()) + '</td>' +
+                '<td style="' + rowStyle + '">' + xlsEscape(cells[1].textContent.trim()) + '</td>' +
+                xlsMoneyCell(cells[2].textContent.trim(), rowStyle) +
+                xlsMoneyCell(cells[3].textContent.trim(), rowStyle) +
+                '</tr>';
+      });
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>';
+
+      // Summary block
+      const taxRateLabel = document.getElementById('taxRateDisplay').textContent;
+      const summaryRows = [
+        ['Subtotal (before tax)', document.getElementById('monthlyCost').textContent],
+        ['Estimated Tax (' + taxRateLabel + ')', document.getElementById('taxAmount').textContent],
+        ['Total (with tax)', document.getElementById('monthlyTotal').textContent],
+        ['Annual Total (with tax)', document.getElementById('annualTotal').textContent]
+      ];
+      summaryRows.forEach((r, i) => {
+        const emphasize = (i === summaryRows.length - 1) ? 'font-weight:bold;' : '';
+        html += '<tr><td colspan="3" style="font-weight:bold;' + emphasize + '">' + xlsEscape(r[0]) + '</td>' +
+                xlsMoneyCell(r[1], emphasize) + '</tr>';
+      });
+
+      html += '</table></body></html>';
+
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
       const link = document.createElement('a');
-      link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-      link.download = 'azure-cost-estimate.csv';
+      link.href = URL.createObjectURL(blob);
+      link.download = 'azure-cost-estimate.xls';
       link.click();
+      URL.revokeObjectURL(link.href);
     }
 
     function printPage() {

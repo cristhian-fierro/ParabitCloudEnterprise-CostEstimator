@@ -27,7 +27,7 @@ Interactive single-page cost calculator for the **Parabit Cloud Enterprise** phy
 | **Cost by Category Chart** | Chart.js horizontal bar chart — spending by Azure service category |
 | **Service Breakdown Table** | Line-item table with SKU labels, monthly and annual costs |
 | **Glossary** | 30 plain-language definitions covering controllers, Azure services, pricing terms, and resilience concepts |
-| **CSV Export** | Full cost breakdown exportable to Excel |
+| **Excel Export** | Full cost breakdown downloadable as a formatted `.xls` spreadsheet |
 | **Print** | Formatted print layout |
 
 ---
