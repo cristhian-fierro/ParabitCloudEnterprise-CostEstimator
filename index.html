@@ -71,6 +71,25 @@
     .dr-btn { background: #e6f9f8; color: #0c5a57; border: 2px solid #9de0db; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; text-align: center; transition: all 0.2s; line-height: 1.4; }
     .dr-btn:hover { background: #c8f0ed; border-color: #0d7a75; }
     .dr-btn.active { background: #0d7a75; color: white; border-color: #0d7a75; }
+    /* Live price refresh modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-card { background: #fff; border-radius: 8px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3); padding: 24px; }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #666; margin-bottom: 18px; }
+    .progress-track { background: #eef1f4; border-radius: 999px; height: 14px; overflow: hidden; margin-bottom: 6px; }
+    .progress-fill { background: #0078d4; height: 100%; width: 0%; border-radius: 999px; transition: width 0.25s ease; }
+    .progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: #555; margin-bottom: 16px; }
+    .refresh-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .refresh-row .rr-label { color: #333; }
+    .refresh-row .rr-val { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .refresh-row.changed .rr-val { color: #28a745; font-weight: 600; }
+    .refresh-row.same .rr-val { color: #999; }
+    .refresh-row.failed .rr-val { color: #d17f00; }
+    .modal-footer { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .modal-footer .summary-text { font-size: 13px; color: #444; }
+    .live-badge { display: none; font-size: 12px; color: #157345; background: #e6f7ee; border: 1px solid #b7e5c9; border-radius: 4px; padding: 4px 10px; margin-left: 8px; vertical-align: middle; }
+    .live-badge.show { display: inline-block; }
   </style>
 </head>
 <body>
@@ -96,6 +115,15 @@
         </div>
       </div>
     </header>
+
+    <!-- ACTIONS -->
+    <div class="section" style="text-align: center;">
+      <button onclick="refreshPricesFromAzure()">🔄 Refresh from Azure</button>
+      <button onclick="exportToExcel()">📥 Export to Excel</button>
+      <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
+      <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
+      <span id="livePricesBadge" class="live-badge"></span>
+    </div>
 
     <!-- HOW TO USE -->
     <div class="section">
@@ -140,7 +168,7 @@
           <div style="font-size:22px; line-height:1;">6️⃣</div>
           <div>
             <div style="font-weight:600; font-size:13px; margin-bottom:3px;">Export or Print</div>
-            <div style="font-size:12px; color:#555;">Click <strong>Export to CSV</strong> to open in Excel, or <strong>Print</strong> for a formatted PDF. Use <strong>Reset</strong> to return all settings to the Standard defaults.</div>
+            <div style="font-size:12px; color:#555;">Click <strong>Export to Excel</strong> to download a formatted spreadsheet, or <strong>Print</strong> for a formatted PDF. Use <strong>Reset</strong> to return all settings to the Standard defaults.</div>
           </div>
         </div>
       </div>
@@ -164,7 +192,7 @@
             <div style="font-weight: 600; margin-bottom: 4px;">Standard</div>
             <div style="font-size: 11px; color: #666;">51-500 controllers</div>
           </button>
-          <button onclick="selectTier(3, 'Professional')" style="padding: 12px; background: #0078d4; color: white; border: 2px solid #0078d4; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-professional">
+          <button onclick="selectTier(3, 'Professional')" style="padding: 12px; background: #f0f0f0; color: #333; border: 2px solid #ddd; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s;" id="btn-professional">
             <div style="font-weight: 600; margin-bottom: 4px;">Professional</div>
             <div style="font-size: 11px; opacity: 0.9;">501-2,000 controllers</div>
           </button>
@@ -636,13 +664,6 @@
       </div>
     </div>
 
-    <!-- ACTIONS -->
-    <div class="section" style="text-align: center;">
-      <button onclick="exportToCSV()">📥 Export to CSV (for Excel)</button>
-      <button class="button-secondary" onclick="printPage()">🖨️ Print</button>
-      <button class="button-secondary" onclick="resetToDefaults()">↻ Reset</button>
-    </div>
-
     <!-- GLOSSARY -->
     <div class="section">
       <div class="section-title collapsed">Glossary</div>
@@ -812,6 +833,17 @@
       <div style="font-size:13px; line-height:1.8;">
 
         <div style="margin-bottom:16px;">
+          <strong style="color:#0078d4;">v1.5.1</strong>
+          <span style="color:#999; margin-left:8px;">2026-06-18</span>
+          <ul style="margin:6px 0 0 18px; color:#444;">
+            <li>Updated <strong>DEFAULT_PRICING</strong> to live-verified West US prices (June 2026): Blob Cool $0.01→$0.0115, Blob Archive $0.00099→$0.002, Log Analytics Retention $0.10→$0.13, Egress $0.087→$0.096/GB</li>
+            <li>Fixed <strong>Cosmos DB SKU label</strong> — now shows "Serverless" for Minimum config and Standard config at Starter/Standard tiers (previously always showed "Autoscale" for Standard config regardless of actual pricing mode)</li>
+            <li>Fixed <strong>Professional tier button</strong> appearing highlighted blue on every page load — hardcoded inline style corrected to match the inactive state of other tier buttons</li>
+            <li>Improved <strong>Log Analytics Archive</strong> price-refresh query — broadened filter so the pick function can match any archive-named meter regardless of exact name variation in the Azure Retail Prices API</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom:16px;">
           <strong style="color:#0078d4;">v1.4.0</strong>
           <span style="color:#999; margin-left:8px;">2026-06-12</span>
           <ul style="margin:6px 0 0 18px; color:#444;">
@@ -862,7 +894,7 @@
             <li>4 controller tiers (Starter / Standard / Professional / Enterprise)</li>
             <li>1-Year Reservation discount toggle (35% off eligible services)</li>
             <li>Dynamic Cosmos DB and SQL Alarm pricing based on event volume</li>
-            <li>Chart.js cost breakdown by category, CSV export, and print support</li>
+            <li>Chart.js cost breakdown by category, Excel export, and print support</li>
             <li>Accordion expand/collapse on all sections</li>
           </ul>
         </div>
@@ -877,7 +909,7 @@
   </div>
 
   <script>
-    const APP_VERSION = '1.4.0';
+    const APP_VERSION = '1.5.1';
 
     // Data
     const TIERS = [
@@ -1038,6 +1070,7 @@
     let selectedRetentionMonths = 12; // default: 1 year
     let selectedFailover = 0;     // 0=None, 1=Critical, 2=All
     let selectedDR = 0;           // 0=None, 1=Standard, 2=Advanced
+    let lastBaseOriginal = 0;     // monthly list price (pre-reservation) from last calculate(); used by Excel export
 
     // Estimated outbound GB/month [configIdx 0-2][tierIdx 0-3]
     const EGRESS_GB = [
@@ -1050,6 +1083,18 @@
 
     const EVENT_BYTES = { credential: 1054, alarm: 342, heartbeat: 342 };
     const SECURITY_OVERHEAD = 0.50; // 50% overhead for encryption/audit metadata
+
+    // Per-unit Azure prices (West US). These map 1:1 to a single Azure meter and can be
+    // refreshed live from the Azure Retail Prices API via refreshPricesFromAzure().
+    // DEFAULT_PRICING is the built-in baseline; PRICING is the mutable copy used by the
+    // dynamic cost functions (calculateRetentionCost / calculateCosmosCost / calculateEgressCost).
+    const DEFAULT_PRICING = Object.freeze({
+      blobHot: 0.0208, blobCool: 0.0115, blobArchive: 0.002,
+      laInteractive: 0.13, laArchive: 0.026,
+      cosmosServerless: 0.279, cosmosProvisioned: 0.008, cosmosMultiRegion: 0.016,
+      egressPerGb: 0.096
+    });
+    let PRICING = { ...DEFAULT_PRICING }; // overwritten by live refresh; restored on reset
 
     const FAILOVER_OPTIONS = [
       { name: 'None', desc: 'None: No geo-failover — single-region deployment, no secondary Azure region.', baseCosts: [0, 0, 0, 0], lineItems: [] },
@@ -1111,7 +1156,7 @@
 
     function calculateEgressCost(tierIdx, configIdx) {
       const billableGb = Math.max(0, EGRESS_GB[configIdx][tierIdx] - 5); // first 5 GB free
-      return Math.round(billableGb * 0.087); // $0.087/GB West US
+      return Math.round(billableGb * PRICING.egressPerGb);
     }
 
     const CONFIGS = [
@@ -1356,7 +1401,7 @@
       const hotGb     = ingestGb;
       const coolGb    = ingestGb * Math.min(Math.max(0, retentionMonths - 1), 11);
       const archiveGb = ingestGb * Math.max(0, retentionMonths - 12);
-      const blobCost  = Math.round((hotGb * 0.0208) + (coolGb * 0.01) + (archiveGb * 0.00099));
+      const blobCost  = Math.round((hotGb * PRICING.blobHot) + (coolGb * PRICING.blobCool) + (archiveGb * PRICING.blobArchive));
 
       // Log Analytics extended retention (~10% of total data goes to monitoring logs)
       // Interactive (31–730 days): $0.10/GB/mo on retained data
@@ -1364,7 +1409,7 @@
       const logGb             = ingestGb * 0.10;
       const laInteractiveMonths = Math.min(Math.max(0, retentionMonths - 1), 23);
       const laArchiveMonths     = Math.max(0, retentionMonths - 24);
-      const laCost = Math.round((logGb * laInteractiveMonths * 0.10) + (logGb * laArchiveMonths * 0.026));
+      const laCost = Math.round((logGb * laInteractiveMonths * PRICING.laInteractive) + (logGb * laArchiveMonths * PRICING.laArchive));
 
       return { blobCost, laCost, total: blobCost + laCost,
                hotGb, coolGb, archiveGb, logGb, retentionMonths };
@@ -1405,22 +1450,22 @@
       let cost = 0;
       if (configIdx === 0) {
         // Minimum: always serverless ($0.279/M RU)
-        cost = (moRU / 1e6) * 0.279;
+        cost = (moRU / 1e6) * PRICING.cosmosServerless;
       } else if (configIdx === 1) {
         // Standard: serverless for small tiers, autoscale for larger ($0.008/hr/100RU)
         if (tierIdx <= 1) {
-          cost = (moRU / 1e6) * 0.279;
+          cost = (moRU / 1e6) * PRICING.cosmosServerless;
         } else if (tierIdx === 2) {
           const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
-          cost = (p / 100) * 0.008 * 730; // $0.008/hr × 730 hr/mo
+          cost = (p / 100) * PRICING.cosmosProvisioned * 730; // $0.008/hr × 730 hr/mo
         } else {
           const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
-          cost = (p / 100) * 0.008 * 730;
+          cost = (p / 100) * PRICING.cosmosProvisioned * 730;
         }
       } else {
         // Advanced: multi-region provisioned ($0.016/hr/100RU, 2× storage)
         const p = Math.max(4000, Math.ceil(ruPerSec / 100) * 100);
-        cost = (p / 100) * 0.016 * 730;
+        cost = (p / 100) * PRICING.cosmosMultiRegion * 730;
       }
       return Math.round(cost + gb * (configIdx === 2 ? 0.05 : 0.025));
     }
@@ -1550,6 +1595,7 @@
       const baseOriginal = rows.reduce((a, r) => a + r.originalCost, 0) + addonMonthly + ret.total + failoverCost + drCost;
       const savings = baseOriginal - baseMonthly;
       const savingsPercent = baseOriginal > 0 ? Math.round(savings / baseOriginal * 100) : 0;
+      lastBaseOriginal = baseOriginal;   // expose for the Excel export's reservation formulas
 
       const taxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
       const taxAmount = Math.round(baseMonthly * taxRate / 100);
@@ -1613,6 +1659,8 @@
         const addonBadge = r.baseCosts ? ' <span class="badge" style="background:#fff3e0;color:#b76c00;">add-on</span>' : '';
         const skuLabel = r.dynamic === 'egress'
           ? `~${EGRESS_GB[selectedConfig][tierIdx]} GB/mo`
+          : r.dynamic === 'cosmos'
+          ? (selectedConfig === 0 || (selectedConfig === 1 && tierIdx <= 1) ? 'Serverless' : selectedConfig === 2 ? 'Multi-region write' : 'Autoscale')
           : (r.skus ? r.skus[selectedConfig] : CONFIGS[selectedConfig].name);
         const configBadge = `<span style="font-size:11px; color:#666;">${skuLabel}</span>`;
         html += `<tr><td>${r.name}${badge}${addonBadge}</td><td>${configBadge}</td><td class="text-right">${formatCurrency(r.cost)}</td><td class="text-right">${formatCurrency(r.cost * 12)}</td></tr>`;
@@ -1719,50 +1767,223 @@
       }
     }
 
-    function exportToCSV() {
+    // "$12,345" -> 12345 ; "" / non-numeric -> NaN
+    function moneyToNum(text) {
+      const n = parseFloat(String(text).replace(/[^0-9.\-]/g, ''));
+      return isNaN(n) ? NaN : n;
+    }
+
+    // Escape text for safe insertion into the export HTML.
+    function xlsEscape(text) {
+      return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Build a currency <td> that Excel treats as a real number (summable) while
+    // still displaying "$1,234". An optional Excel formula is attached via x:fmla;
+    // the computed number is kept as the cached value so it still shows if a viewer
+    // ignores formulas. Falls back to plain text for non-currency values.
+    function xlsMoneyCell(text, extraStyle, formula) {
+      const n = moneyToNum(text);
+      const fmla = formula ? ' x:fmla="' + xlsEscape(formula) + '"' : '';
+      const style = "mso-number-format:'\\0024#,##0';text-align:right;" + (extraStyle || '');
+      if (isNaN(n)) return '<td style="text-align:right;' + (extraStyle || '') + '"' + fmla + '>' + xlsEscape(text) + '</td>';
+      return '<td style="' + style + '"' + fmla + '>' + n + '</td>';
+    }
+
+    function exportToExcel() {
       const controllers = document.getElementById('controllers').value;
       const tierIdx = getTierIndex(parseInt(controllers));
-      const rows = document.querySelectorAll('#serviceTable tr');
-      let csv = 'Azure Cost Estimate\n\n';
-      csv += 'Configuration\n';
-      csv += 'Controllers,' + controllers + '\n';
-      csv += 'Controller Tier,' + TIERS[tierIdx].name + '\n';
-      csv += 'Service Configuration,' + CONFIGS[selectedConfig].name + '\n';
-      csv += 'Heartbeat Interval,' + document.getElementById('hb-display').value + '\n';
-      csv += 'Credential Events,' + document.getElementById('cred-display').value + '\n';
-      csv += 'Alarm Events,' + document.getElementById('alarm-display').value + '\n';
-      const csvTaxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
-      csv += 'Tax Rate,' + csvTaxRate + '%\n';
-      csv += 'Failover Scope,' + FAILOVER_OPTIONS[selectedFailover].name + '\n';
-      csv += 'DR Tier,' + DR_OPTIONS[selectedDR].name + '\n';
-      csv += 'Retention Period,' + {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths] + '\n';
-      const csvOverhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
-      const csvDataVol = calculateMonthlyDataGb(
+      const taxRate = Math.max(0, parseFloat(document.getElementById('taxRate').value) || 0);
+      const overhead = Math.max(0, parseFloat(document.getElementById('securityOverhead').value) || 0);
+      const dataVol = calculateMonthlyDataGb(
         parseInt(controllers),
         parseInt(document.getElementById('credEvents').value),
         parseInt(document.getElementById('alarmEvents').value),
         parseInt(document.getElementById('hbInterval').value),
-        csvOverhead
+        overhead
       );
-      csv += 'Security Overhead,' + csvOverhead + '%\n';
-      csv += 'Data Ingested per Month (auto-calculated),' + csvDataVol.totalGb.toFixed(2) + ' GB\n\n';
-      csv += 'Service Costs\n';
-      csv += 'Service,Configuration,Monthly,Annual\n';
-      rows.forEach(row => {
+      const retentionLabel = {3:'3 months',6:'6 months',12:'1 year',36:'3 years',120:'10 years'}[selectedRetentionMonths];
+
+      // Selected-options rows (label, value)
+      const configRows = [
+        ['Controllers', controllers],
+        ['Controller Tier', TIERS[tierIdx].name],
+        ['Service Configuration', CONFIGS[selectedConfig].name],
+        ['Heartbeat Interval', document.getElementById('hb-display').value],
+        ['Credential Events', document.getElementById('cred-display').value],
+        ['Alarm Events', document.getElementById('alarm-display').value],
+        ['Tax Rate', taxRate + '%'],
+        ['Failover Scope', FAILOVER_OPTIONS[selectedFailover].name],
+        ['DR Tier', DR_OPTIONS[selectedDR].name],
+        ['Retention Period', retentionLabel],
+        ['Security Overhead', overhead + '%'],
+        ['Data Ingested per Month (auto-calculated)', dataVol.totalGb.toFixed(2) + ' GB']
+      ];
+
+      const HEADER_FILL = 'background:#0078d4;color:#ffffff;font-weight:bold;';
+      const CAT_FILL    = 'background:#eaf3fb;font-weight:bold;';
+
+      let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+                 'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+                 'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">' +
+                 '<style>td,th{border:1px solid #cccccc;padding:4px 8px;font-family:Calibri,Arial,sans-serif;font-size:11pt;}' +
+                 'table{border-collapse:collapse;}</style></head><body>';
+
+      // Track the current Excel row (1-based) so derived cells can reference others by address.
+      let rowNum = 0;
+
+      html += '<table>';
+      // Title
+      html += '<tr><td colspan="4" style="font-size:16pt;font-weight:bold;border:none;">Azure Cost Estimate</td></tr>'; rowNum++;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
+
+      // Configuration block
+      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">Configuration</td></tr>'; rowNum++;
+      configRows.forEach(r => {
+        html += '<tr><td style="font-weight:bold;">' + xlsEscape(r[0]) + '</td><td>' + xlsEscape(r[1]) + '</td></tr>'; rowNum++;
+      });
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
+
+      // Service Costs table (col A=Service, B=Configuration, C=Monthly, D=Annual)
+      html += '<tr>' +
+              '<td style="' + HEADER_FILL + '">Service</td>' +
+              '<td style="' + HEADER_FILL + '">Configuration</td>' +
+              '<td style="' + HEADER_FILL + 'text-align:right;">Monthly</td>' +
+              '<td style="' + HEADER_FILL + 'text-align:right;">Annual</td></tr>'; rowNum++;
+
+      // Snapshot the rendered rows first so we can resolve category SUM ranges by address.
+      const svc = [];
+      document.querySelectorAll('#serviceTable tr').forEach(row => {
         const cells = row.querySelectorAll('td');
-        if (cells.length > 0) {
-          csv += cells[0].textContent + ',' + cells[1].textContent + ',' + cells[2].textContent + ',' + cells[3].textContent + '\n';
+        if (cells.length < 4) return;
+        const name = cells[0].textContent.trim();
+        // The page table appends its own Tax / Estimated Tax / Total (w/ Tax) rows.
+        // The export builds a dedicated Subtotal/Tax/Total summary block below, so skip
+        // them here — otherwise they duplicate and break the category SUM formulas.
+        if (name === 'Tax' || /^Estimated Tax/.test(name) || /^Total \(w\/ Tax\)/.test(name)) return;
+        svc.push({
+          isCat:   row.classList.contains('cat-row'),
+          name:    name,
+          config:  cells[1].textContent.trim(),
+          monthly: cells[2].textContent.trim(),
+          annual:  cells[3].textContent.trim()
+        });
+      });
+
+      const svcStart = rowNum + 1;        // Excel row of the first service data row
+      const catRowNums = [];              // Excel rows of category subtotal rows
+      svc.forEach((r, i) => {
+        const excelRow = svcStart + i;
+        // Annual = Monthly * 12 for every row.
+        const annualFmla = '=C' + excelRow + '*12';
+        if (r.isCat) {
+          catRowNums.push(excelRow);
+          // Category Monthly = SUM of its member item rows (the run until the next category).
+          let last = i;
+          for (let j = i + 1; j < svc.length && !svc[j].isCat; j++) last = j;
+          const monthlyFmla = last > i
+            ? '=SUM(C' + (svcStart + i + 1) + ':C' + (svcStart + last) + ')'
+            : null;
+          html += '<tr>' +
+                  '<td style="' + CAT_FILL + '">' + xlsEscape(r.name) + '</td>' +
+                  '<td style="' + CAT_FILL + '"></td>' +
+                  xlsMoneyCell(r.monthly, CAT_FILL, monthlyFmla) +
+                  xlsMoneyCell(r.annual, CAT_FILL, annualFmla) +
+                  '</tr>';
+        } else {
+          html += '<tr>' +
+                  '<td>' + xlsEscape(r.name) + '</td>' +
+                  '<td>' + xlsEscape(r.config) + '</td>' +
+                  xlsMoneyCell(r.monthly, '') +
+                  xlsMoneyCell(r.annual, '', annualFmla) +
+                  '</tr>';
         }
       });
-      csv += '\nSubtotal (before tax),' + document.getElementById('monthlyCost').textContent + '/mo\n';
-      csv += 'Estimated Tax (' + document.getElementById('taxRateDisplay').textContent + '),' + document.getElementById('taxAmount').textContent + '/mo\n';
-      csv += 'Total (with tax),' + document.getElementById('monthlyTotal').textContent + '/mo\n';
-      csv += 'Annual Total (with tax),' + document.getElementById('annualTotal').textContent + '\n';
+      rowNum += svc.length;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
 
+      // Summary block (label spans A–C; value lives in column D)
+      const taxRateLabel = document.getElementById('taxRateDisplay').textContent;
+      // Subtotal = SUM of the category subtotals.
+      const subtotalFmla = catRowNums.length ? '=SUM(' + catRowNums.map(n => 'C' + n).join(',') + ')' : null;
+
+      const subtotalRow = rowNum + 1;
+      html += '<tr><td colspan="2" style="font-weight:bold;">Subtotal (before tax)</td>' +
+              xlsMoneyCell(document.getElementById('monthlyCost').textContent, '', subtotalFmla) + '</tr>'; rowNum++;
+
+      const taxRow = rowNum + 1;
+      const taxFmla = '=ROUND(C' + subtotalRow + '*' + taxRate + '/100,0)';
+      html += '<tr><td colspan="2" style="font-weight:bold;">Estimated Tax (' + xlsEscape(taxRateLabel) + ')</td>' +
+              xlsMoneyCell(document.getElementById('taxAmount').textContent, '', taxFmla) + '</tr>'; rowNum++;
+
+      const totalRow = rowNum + 1;
+      const totalFmla = '=C' + subtotalRow + '+C' + taxRow;
+      html += '<tr><td colspan="2" style="font-weight:bold;">Total (with tax) Monthly</td>' +
+              xlsMoneyCell(document.getElementById('monthlyTotal').textContent, '', totalFmla) + '</tr>'; rowNum++;
+
+      const annualTotalFmla = '=C' + totalRow + '*12';
+      html += '<tr><td colspan="2" style="font-weight:bold;">Annual Total (with tax)</td>' +
+              xlsMoneyCell(document.getElementById('annualTotal').textContent, 'font-weight:bold;', annualTotalFmla) + '</tr>'; rowNum++;
+      html += '<tr><td colspan="4" style="border:none;"></td></tr>'; rowNum++;
+
+      // 1-Year Azure Reservation savings block (label in col A; value in col B)
+      const useReservations = document.getElementById('reservationsMode').checked;
+      html += '<tr><td colspan="2" style="' + HEADER_FILL + '">1-Year Azure Reservation</td></tr>'; rowNum++;
+      html += '<tr><td style="font-weight:bold;">Reservations Enabled</td><td>' + (useReservations ? 'Yes' : 'No') + '</td></tr>'; rowNum++;
+      if (useReservations) {
+        // The List Price (pre-reservation monthly cost) is the single static anchor — it's the
+        // raw Azure list price total and isn't derivable from the (post-discount) service rows.
+        // Every other field below is a live formula built from it, the Subtotal, and the rate.
+        const listRow = rowNum + 1;
+        const listNote = 'Sum of every service at full list price (before the 35% reservation discount) ' +
+                         '+ add-ons + retention + failover + DR. Computed by the app; not derivable from the discounted rows above.';
+        html += '<tr><td style="font-weight:bold;">List Price (Monthly, pre-reservation)</td>' +
+                xlsMoneyCell(Math.round(lastBaseOriginal)) +
+                '<td style="font-style:italic;color:#666666;font-size:9pt;">' + xlsEscape(listNote) + '</td></tr>'; rowNum++;
+        // Surface the 35% reservation discount rate as its own (editable) cell, stored as
+        // the decimal 0.35 and shown as "35%", so the Upfront formula references it directly.
+        const rateRow = rowNum + 1;
+        html += '<tr><td style="font-weight:bold;">Reservation Discount Rate</td>' +
+                '<td style="text-align:right;mso-number-format:\'0%\';">0.35</td></tr>'; rowNum++;
+        // Monthly Savings = List Price - Subtotal (discounted).
+        const savingsRow = rowNum + 1;
+        const savingsFmla = '=B' + listRow + '-C' + subtotalRow;
+        html += '<tr><td style="font-weight:bold;">Monthly Savings</td>' +
+                xlsMoneyCell(document.getElementById('monthlySavings').textContent, '', savingsFmla) + '</tr>'; rowNum++;
+        // Savings % = Savings / List Price.
+        const pctFmla = '=ROUND(B' + savingsRow + '/B' + listRow + '*100,0)&"%"';
+        html += '<tr><td style="font-weight:bold;">Savings vs Pay-As-You-Go</td>' +
+                '<td style="text-align:right;" x:fmla="' + xlsEscape(pctFmla) + '">' +
+                xlsEscape(document.getElementById('percentSave').textContent) + '</td></tr>'; rowNum++;
+        // Upfront (1-Year) = List Price * 12 * discount rate.
+        const upfrontRow = rowNum + 1;
+        const upfrontFmla = '=ROUND(B' + listRow + '*12*B' + rateRow + ',0)';
+        html += '<tr><td style="font-weight:bold;">Upfront Cost (1-Year)</td>' +
+                xlsMoneyCell(document.getElementById('upfrontCost').textContent, '', upfrontFmla) + '</tr>'; rowNum++;
+        // Amortized Monthly = Upfront / 12.
+        html += '<tr><td style="font-weight:bold;">Amortized Monthly</td>' +
+                xlsMoneyCell(document.getElementById('amortizedCost').textContent, '', '=ROUND(B' + upfrontRow + '/12,0)') + '</tr>'; rowNum++;
+        // Break-Even = ROUNDUP(Upfront / Monthly Savings).
+        const beNum = document.getElementById('breakevenMonths').textContent.trim();
+        const beFmla = '=ROUNDUP(B' + upfrontRow + '/B' + savingsRow + ',0)';
+        html += '<tr><td style="font-weight:bold;">Break-Even (months)</td>' +
+                '<td style="text-align:right;" x:fmla="' + xlsEscape(beFmla) + '">' + xlsEscape(beNum) + '</td></tr>'; rowNum++;
+      }
+
+      html += '</table></body></html>';
+
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const stamp = '' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) +
+                    '-' + pad(now.getHours()) + pad(now.getMinutes());
+
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
       const link = document.createElement('a');
-      link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-      link.download = 'azure-cost-estimate.csv';
+      link.href = URL.createObjectURL(blob);
+      link.download = stamp + '-azure-cost-estimate.xls';
       link.click();
+      URL.revokeObjectURL(link.href);
     }
 
     function printPage() {
@@ -1770,6 +1991,10 @@
     }
 
     function resetToDefaults() {
+      PRICING = { ...DEFAULT_PRICING }; // revert any live-refreshed prices
+      const badge = document.getElementById('livePricesBadge');
+      badge.classList.remove('show');
+      badge.textContent = '';
       document.getElementById('controllers').value = '500';
       document.getElementById('hbInterval').value = '3600';
       document.getElementById('credEvents').value = '10';
@@ -1781,6 +2006,157 @@
       selectFailover(0);
       selectDR(0);
       selectRetention(12);
+    }
+
+    // ── Live price refresh from the Azure Retail Prices API ──────────────────
+    // Public, no-auth, CORS-enabled. Only per-unit meter prices are refreshed;
+    // composite multi-VM bundle estimates are intentionally untouched.
+    const RETAIL_API = 'https://prices.azure.com/api/retail/prices';
+    // prices.azure.com sends no CORS headers, so the browser cannot call it directly.
+    // Deploy the included Azure Function (see azure-proxy/README.md) and paste its endpoint
+    // here, e.g. 'https://azure-price-proxy-12345.azurewebsites.net/api/prices'. Leave ''
+    // to attempt a direct call (works only outside a browser; in-page it fails gracefully).
+    const PRICE_PROXY = 'https://azure-price-proxy-e42505.azurewebsites.net/api/prices';
+
+    // Each target maps one PRICING key to a single Azure meter.
+    //  filter — OData $filter narrowing the query
+    //  unit   — display suffix
+    //  pick   — selects the right record from Items (return undefined to keep the default)
+    const PRICE_TARGETS = [
+      { key: 'blobHot', label: 'Blob Storage – Hot LRS', unit: '/GB/mo',
+        filter: "serviceName eq 'Storage' and armRegionName eq 'westus' and meterName eq 'Hot LRS Data Stored'",
+        pick: blobPick },
+      { key: 'blobCool', label: 'Blob Storage – Cool LRS', unit: '/GB/mo',
+        filter: "serviceName eq 'Storage' and armRegionName eq 'westus' and meterName eq 'Cool LRS Data Stored'",
+        pick: blobPick },
+      { key: 'blobArchive', label: 'Blob Storage – Archive LRS', unit: '/GB/mo',
+        filter: "serviceName eq 'Storage' and armRegionName eq 'westus' and meterName eq 'Archive LRS Data Stored'",
+        pick: blobPick },
+      { key: 'cosmosServerless', label: 'Cosmos DB – Serverless', unit: '/M RU',
+        filter: "serviceName eq 'Azure Cosmos DB' and armRegionName eq 'westus' and meterName eq '1M RUs'",
+        pick: items => items.find(i => i.retailPrice > 0 && /serverless/i.test(i.productName)) || items.find(i => i.retailPrice > 0) },
+      { key: 'cosmosProvisioned', label: 'Cosmos DB – Provisioned 100 RU/s', unit: '/hr·100RU',
+        filter: "serviceName eq 'Azure Cosmos DB' and armRegionName eq 'westus' and meterName eq '100 RU/s'",
+        pick: items => lowest(items.filter(i => i.retailPrice > 0)) },
+      { key: 'cosmosMultiRegion', label: 'Cosmos DB – Multi-region write 100 RU/s', unit: '/hr·100RU',
+        filter: "serviceName eq 'Azure Cosmos DB' and armRegionName eq 'westus' and meterName eq '100 Multi-master RU/s'",
+        pick: items => lowest(items.filter(i => i.retailPrice > 0)) },
+      { key: 'egressPerGb', label: 'Egress – Internet data transfer out', unit: '/GB',
+        filter: "serviceName eq 'Bandwidth' and contains(meterName, 'Data Transfer Out')",
+        pick: items => firstTier(items.filter(i => i.retailPrice > 0 && i.retailPrice < 0.2 && /GB/i.test(i.unitOfMeasure || '') && !/(intra|inter-region|availability zone|within)/i.test(i.meterName + ' ' + i.productName))) },
+      { key: 'laInteractive', label: 'Log Analytics – Data retention', unit: '/GB/mo',
+        filter: "serviceName eq 'Log Analytics' and armRegionName eq 'westus' and contains(meterName, 'Data Retention')",
+        pick: items => items.find(i => /Data Retention/i.test(i.meterName) && !/archive/i.test(i.meterName) && i.retailPrice > 0 && /GB/i.test(i.unitOfMeasure || '')) },
+      { key: 'laArchive', label: 'Log Analytics – Archived logs', unit: '/GB/mo',
+        filter: "serviceName eq 'Log Analytics' and armRegionName eq 'westus'",
+        pick: items => items.find(i => /(archive|archived)/i.test(i.meterName) && i.retailPrice > 0 && /GB/i.test(i.unitOfMeasure || '')) },
+    ];
+
+    function blobPick(items) {
+      return firstTier(items.filter(i => /Blob Storage/i.test(i.productName) && /GB\/Month/i.test(i.unitOfMeasure || '') && i.retailPrice > 0));
+    }
+    function firstTier(arr) {
+      return arr.slice().sort((a, b) => (a.tierMinimumUnits || 0) - (b.tierMinimumUnits || 0))[0];
+    }
+    function lowest(arr) {
+      return arr.slice().sort((a, b) => a.retailPrice - b.retailPrice)[0];
+    }
+    function fmtPrice(v) {
+      return '$' + parseFloat(Number(v).toFixed(5)).toString();
+    }
+
+    let refreshInProgress = false;
+
+    async function refreshPricesFromAzure() {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+
+      const modal   = document.getElementById('refreshModal');
+      const bar     = document.getElementById('refreshBar');
+      const pct     = document.getElementById('refreshPct');
+      const status  = document.getElementById('refreshStatus');
+      const results = document.getElementById('refreshResults');
+      const summary = document.getElementById('refreshSummary');
+      const closeBtn = document.getElementById('refreshClose');
+
+      // Reset modal state
+      results.innerHTML = '';
+      summary.textContent = '';
+      bar.style.width = '0%';
+      pct.textContent = '0%';
+      status.textContent = 'Starting…';
+      closeBtn.style.display = 'none';
+      modal.classList.add('open');
+
+      const total = PRICE_TARGETS.length;
+      const staged = {};
+      let done = 0, changed = 0, fetched = 0;
+
+      for (const t of PRICE_TARGETS) {
+        status.textContent = 'Querying ' + t.label + '…';
+        const oldVal = PRICING[t.key];
+        let row;
+        try {
+          const target = RETAIL_API + "?currencyCode='USD'&$top=100&$filter=" + encodeURIComponent(t.filter);
+          const url = PRICE_PROXY ? PRICE_PROXY + (PRICE_PROXY.includes('?') ? '&' : '?') + 'url=' + encodeURIComponent(target) : target;
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const data = await resp.json();
+          const hit = t.pick(data.Items || []);
+          if (hit && typeof hit.retailPrice === 'number' && hit.retailPrice > 0) {
+            fetched++;
+            const newVal = hit.retailPrice;
+            staged[t.key] = newVal;
+            if (Math.abs(newVal - oldVal) > 1e-9) {
+              changed++;
+              row = makeRow('changed', t.label, fmtPrice(oldVal) + ' → ' + fmtPrice(newVal) + t.unit);
+            } else {
+              row = makeRow('same', t.label, fmtPrice(newVal) + t.unit + ' (unchanged)');
+            }
+          } else {
+            row = makeRow('failed', t.label, 'kept ' + fmtPrice(oldVal) + t.unit + ' — no live meter');
+          }
+        } catch (err) {
+          row = makeRow('failed', t.label, 'kept ' + fmtPrice(oldVal) + t.unit + ' — fetch failed');
+        }
+        results.appendChild(row);
+
+        done++;
+        const p = Math.round((done / total) * 100);
+        bar.style.width = p + '%';
+        pct.textContent = p + '%';
+      }
+
+      // Apply fetched prices and recalculate the whole page
+      Object.assign(PRICING, staged);
+      calculate();
+
+      const asOf = new Date().toLocaleDateString();
+      status.textContent = 'Done';
+      if (fetched === 0) {
+        const hint = PRICE_PROXY
+          ? 'Check that the CORS proxy URL is reachable.'
+          : 'Set PRICE_PROXY in index.html to your Azure Function endpoint (see azure-proxy/README.md) — the Azure pricing API has no CORS and cannot be called directly from a browser.';
+        summary.innerHTML = '<span style="color:#d17f00;">No live prices retrieved — still using built-in defaults. ' + hint + '</span>';
+      } else {
+        summary.textContent = 'Updated ' + changed + ' of ' + total + ' prices · as of ' + asOf;
+        const badge = document.getElementById('livePricesBadge');
+        badge.textContent = '✅ Live Azure prices · ' + asOf;
+        badge.classList.add('show');
+      }
+      closeBtn.style.display = 'inline-block';
+      refreshInProgress = false;
+    }
+
+    function makeRow(cls, label, val) {
+      const div = document.createElement('div');
+      div.className = 'refresh-row ' + cls;
+      div.innerHTML = '<span class="rr-label">' + label + '</span><span class="rr-val">' + val + '</span>';
+      return div;
+    }
+
+    function closeRefreshModal() {
+      document.getElementById('refreshModal').classList.remove('open');
     }
 
     // Event listeners
@@ -1819,5 +2195,23 @@
 
     document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
 </script>
+
+  <!-- LIVE PRICE REFRESH MODAL -->
+  <div id="refreshModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-title">🔄 Fetching live Azure prices…</div>
+      <div class="modal-sub">Querying the Azure Retail Prices API (West US). Composite multi-VM bundle estimates are not affected — only per-unit meter prices.</div>
+      <div class="progress-track"><div id="refreshBar" class="progress-fill"></div></div>
+      <div class="progress-meta">
+        <span id="refreshStatus">Starting…</span>
+        <span id="refreshPct">0%</span>
+      </div>
+      <div id="refreshResults"></div>
+      <div class="modal-footer">
+        <span id="refreshSummary" class="summary-text"></span>
+        <button id="refreshClose" class="button-secondary" onclick="closeRefreshModal()" style="display:none;">Close</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

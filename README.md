@@ -27,7 +27,8 @@ Interactive single-page cost calculator for the **Parabit Cloud Enterprise** phy
 | **Cost by Category Chart** | Chart.js horizontal bar chart — spending by Azure service category |
 | **Service Breakdown Table** | Line-item table with SKU labels, monthly and annual costs |
 | **Glossary** | 30 plain-language definitions covering controllers, Azure services, pricing terms, and resilience concepts |
-| **CSV Export** | Full cost breakdown exportable to Excel |
+| **Live Price Refresh** | **🔄 Refresh from Azure** button pulls current per-unit prices from the Azure Retail Prices API (via a CORS proxy) with a progress modal, then recalculates live — see [Architecture](#architecture--live-price-refresh-dataflow) |
+| **Excel Export** | Full cost breakdown downloadable as a formatted `.xls` spreadsheet |
 | **Print** | Formatted print layout |
 
 ---
@@ -76,11 +77,59 @@ Then navigate to `http://localhost:8080`.
 
 ```
 index.html          # Entire application — CSS + HTML + JavaScript in one file
+azure-proxy/        # Azure Function: CORS proxy for the Azure Retail Prices API (live refresh)
+  src/functions/prices.js   # The proxy handler (host-locked to prices.azure.com)
+  deploy.ps1               # One-command deploy to the acs-enterprise-cloud subscription
+  README.md                # Proxy setup + deploy instructions
 CLAUDE.md           # Developer notes for Claude Code (AI assistant)
 README.md           # This file
 ```
 
-The only external dependency is [Chart.js 4.4.1](https://www.chartjs.org/), loaded from CDN. No package manager, no bundler, no backend.
+The app's only external dependency is [Chart.js 4.4.1](https://www.chartjs.org/), loaded from CDN — no package manager, no bundler, no backend. The `azure-proxy/` folder is **optional** infrastructure: it's only needed to power the live **Refresh from Azure** button, since `prices.azure.com` sends no CORS headers and cannot be called directly from the browser.
+
+---
+
+## Architecture — Live Price Refresh (dataflow)
+
+The estimator ships with built-in West US prices. The **🔄 Refresh from Azure** button pulls the *current* per-unit meter prices on demand. Because `prices.azure.com` returns no `Access-Control-Allow-Origin` header, the request is routed through a small **Azure Function** (`azure-proxy/`) that fetches server-side and re-serves the JSON with CORS headers. Only per-unit meters are refreshed; composite multi-VM bundle estimates are left untouched.
+
+```mermaid
+flowchart TD
+    subgraph Browser["🌐 Browser — static app (GitHub Pages, index.html)"]
+        U([User]) -->|clicks 🔄 Refresh from Azure| RF["refreshPricesFromAzure()"]
+        RF -->|opens| M["Progress modal<br/>(bar + % + per-row results)"]
+        RF -->|for each of 9 targets| LOOP{{"PRICE_TARGETS loop<br/>build OData $filter"}}
+        LOOP -->|"fetch PRICE_PROXY?url=…"| REQ[/HTTP GET/]
+        RESP[/JSON Items/] -->|"t.pick() selects meter"| STAGE["stage value<br/>(confident match only)"]
+        STAGE -->|after loop| APPLY["Object.assign(PRICING, staged)"]
+        APPLY --> CALC["calculate()"]
+        CALC --> UI["DOM update:<br/>breakdown table, metric cards,<br/>header banner, chart"]
+        APPLY -.->|no match / error| KEEP["keep DEFAULT_PRICING value<br/>row = unchanged / failed"]
+        CALC --> BADGE["✅ Live Azure prices badge"]
+    end
+
+    subgraph Azure["☁️ Azure — acs-enterprise-cloud / rg-cost-estimator"]
+        PROXY["Azure Function<br/>/api/prices<br/>(CORS headers + host allowlist)"]
+        GUARD{"host == prices.azure.com?"}
+        PROXY --> GUARD
+        GUARD -->|no| BLOCK[/"403 Host not allowed"/]
+        GUARD -->|yes| FETCH["server-side fetch"]
+    end
+
+    API[("Azure Retail Prices API<br/>prices.azure.com<br/>(no CORS headers)")]
+
+    REQ -->|"adds CORS, proxies"| PROXY
+    FETCH -->|"GET retail/prices?$filter=…"| API
+    API -->|"prices JSON"| FETCH
+    FETCH -->|"JSON + Access-Control-Allow-Origin: *"| RESP
+
+    classDef azure fill:#e6f2fb,stroke:#0078d4,color:#000;
+    classDef ext fill:#fff4e6,stroke:#d17f00,color:#000;
+    class PROXY,GUARD,FETCH,BLOCK azure;
+    class API ext;
+```
+
+> Without a configured proxy (`PRICE_PROXY` empty in `index.html`), the refresh fails gracefully and the app keeps using its built-in defaults. See [`azure-proxy/README.md`](azure-proxy/README.md) to deploy the proxy.
 
 ---
 
@@ -88,6 +137,7 @@ The only external dependency is [Chart.js 4.4.1](https://www.chartjs.org/), load
 
 | Version | Date | Summary |
 |---|---|---|
+| v1.5.0 | 2026-06-18 | Live price refresh (🔄 Refresh from Azure button, CORS proxy via Azure Functions, progress modal) |
 | v1.4.0 | 2026-06-12 | Chart bug fix, header cost banner, Annual Subtotal card, price re-verification, Glossary |
 | v1.3.0 | 2026-06-12 | Failover selector, DR tier, Data Retention rework, tax support |
 | v1.2.0 | 2026-05-20 | Egress bandwidth line item, version number, Changelog section |

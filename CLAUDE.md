@@ -13,6 +13,8 @@ The only external dependency is Chart.js, loaded from a CDN:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 ```
 
+The `azure-proxy/` sibling folder is **separate backend infrastructure** — a small Azure Function CORS proxy that lets the browser call `prices.azure.com` for live price refresh. It is not part of the single-file constraint. See [`azure-proxy/README.md`](azure-proxy/README.md) for deploy instructions.
+
 ## Running Locally
 
 Open `index.html` directly in a browser, or serve it with any static file server:
@@ -54,13 +56,22 @@ Everything is in `index.html` in three sections:
 - `EGRESS_GB` — estimated outbound GB/month per config and tier.
 - `FAILOVER_OPTIONS` — 3 failover scopes, each with `baseCosts[tierIdx]` and a `lineItems` array of sub-components.
 - `DR_OPTIONS` — 3 DR tiers, same structure as `FAILOVER_OPTIONS`.
+- `DEFAULT_PRICING` — frozen object with the 9 built-in per-unit price constants: `blobHot`, `blobCool`, `blobArchive`, `laInteractive`, `laArchive`, `cosmosServerless`, `cosmosProvisioned`, `cosmosMultiRegion`, `egressPerGb`. These are the West US baseline prices baked into the app.
+- `PRICING` — mutable copy of `DEFAULT_PRICING`. All cost functions reference `PRICING.*` instead of inline literals. Overwritten by `refreshPricesFromAzure()`; restored to `DEFAULT_PRICING` by `resetToDefaults()`.
+- `RETAIL_API` — base URL `https://prices.azure.com/api/retail/prices` (not called directly from browser due to CORS).
+- `PRICE_PROXY` — URL of the deployed Azure Function CORS proxy (`https://azure-price-proxy-e42505.azurewebsites.net/api/prices`). Set to `''` to disable live refresh.
+- `PRICE_TARGETS` — array of 9 objects `{ key, label, unit, filter, pick }` — one per refreshable price. `filter` is the OData `$filter` string for the Azure Retail Prices API; `pick` selects the right item from the returned `Items` array. On no confident match the key is left at its current `PRICING` value.
 
 ### Key Functions
 - `calculate()` — main recalculation; reads all inputs, recomputes every cost, updates DOM table, metric cards, header banner, and Chart.js instance.
-- `calculateCosmosCost()` — dynamic Cosmos DB cost based on heartbeat interval, credential events, alarm events, controllers, and selected config.
+- `calculateCosmosCost()` — dynamic Cosmos DB cost based on heartbeat interval, credential events, alarm events, controllers, and selected config. Uses `PRICING.cosmosServerless`, `PRICING.cosmosProvisioned`, `PRICING.cosmosMultiRegion`.
 - `calculateMonthlyDataGb(controllers, credEvents, alarmEvents, hbInterval)` — auto-calculates data volume from event byte sizes + 50% security overhead; returns `{ credGb, alarmGb, hbGb, rawGb, totalGb }`.
-- `calculateRetentionCost(ingestGb, retentionMonths)` — returns blob and Log Analytics costs broken down by Hot/Cool/Archive tiers.
+- `calculateRetentionCost(ingestGb, retentionMonths)` — returns blob and Log Analytics costs broken down by Hot/Cool/Archive tiers. Uses `PRICING.blobHot/blobCool/blobArchive/laInteractive/laArchive`.
+- `calculateEgressCost(tierIdx)` — returns egress cost from `EGRESS_GB[selectedConfig][tierIdx] * PRICING.egressPerGb`.
 - `getAddonCost(addon, tierIdx)` — returns `addon.baseCosts[tierIdx] * multipliers[selectedConfig]`.
+- `refreshPricesFromAzure()` — opens the progress modal, loops `PRICE_TARGETS` sequentially via the CORS proxy, stages matched values, assigns into `PRICING`, calls `calculate()`, shows the live-prices badge. Leaves `PRICING` untouched for any target that fails or returns no confident match.
+- `resetToDefaults()` — resets all inputs to their initial values, restores `PRICING = { ...DEFAULT_PRICING }`, clears the live-prices badge, and calls `calculate()`.
+- `closeRefreshModal()` — hides the progress modal.
 - `selectConfig(idx)` — updates `selectedConfig`, refreshes config panel, calls `calculate()`.
 - `selectRetention(months)` — updates `selectedRetentionMonths`, toggles button active state, calls `calculate()`.
 - `selectFailover(idx)` — updates `selectedFailover`, toggles button active state, updates description panel, calls `calculate()`.
@@ -70,16 +81,26 @@ Everything is in `index.html` in three sections:
 
 ## Pricing Data
 
-All Azure prices are West US estimates re-verified against the Azure Retail Prices API (June 2026). Confirmed current prices:
+All Azure prices are West US estimates re-verified via live Refresh from Azure (June 2026). `DEFAULT_PRICING` values last updated 2026-06-18:
+
+| Key | Value | Source |
+|---|---|---|
+| `blobHot` | $0.0208/GB/mo | Azure Retail Prices API — live |
+| `blobCool` | $0.0115/GB/mo | Azure Retail Prices API — live |
+| `blobArchive` | $0.002/GB/mo | Azure Retail Prices API — live |
+| `laInteractive` | $0.13/GB/mo | Azure Retail Prices API — live |
+| `laArchive` | $0.026/GB/mo | Manual — no API meter match yet |
+| `cosmosServerless` | $0.279/M RU | Azure Retail Prices API — live |
+| `cosmosProvisioned` | $0.008/hr per 100 RU/s | Azure Retail Prices API — live |
+| `cosmosMultiRegion` | $0.016/hr per 100 RU/s | Azure Retail Prices API — live |
+| `egressPerGb` | $0.096/GB | Azure Retail Prices API — live |
+
+Other service costs (flat monthly estimates in `SERVICES`/`ADD_ONS`/`FAILOVER_OPTIONS`/`DR_OPTIONS`):
 
 | Service | Verified Price |
 |---|---|
 | App Gateway WAF_v2 | $341.64/mo base → code uses $342 |
-| Blob Storage Hot LRS | $0.0208/GB/mo |
 | App Service S2 | $146/mo (Windows) |
-| Cosmos DB Serverless | $0.279/M RU |
-| Cosmos DB Provisioned | $0.008/hr per 100 RU/s |
-| Cosmos DB Multi-region write | $0.016/hr per 100 RU/s |
 | AKS Uptime SLA | $0.10/hr → $73/mo |
 
 When updating prices, update the relevant arrays in `SERVICES`, `ADD_ONS`, `FAILOVER_OPTIONS`, and `DR_OPTIONS`, and update the static comparison tables in the HTML markup to stay in sync.
